@@ -1,151 +1,237 @@
 # Zornade Italian Parcel Downloader
 
-A QGIS plugin to download enriched Italian cadastral parcel data from Zornade's comprehensive dataset via RapidAPI.
+**Professional QGIS plugin for accessing enriched Italian cadastral parcel data**
+
+[![QGIS Version](https://img.shields.io/badge/QGIS-3.16+-green.svg)](https://qgis.org)
+[![License](https://img.shields.io/badge/License-GPL--2.0--or--later-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/Version-1.0.0-orange.svg)](metadata.txt)
 
 ## Overview
 
-This plugin provides seamless access to Zornade's enriched Italian cadastral parcel database, offering detailed geometric and attribute information for cadastral parcels across Italy. The data includes administrative boundaries, risk assessments, land cover classification, demographic information, and elevation statistics.
+Zornade Italian Parcel Downloader is a professional-grade QGIS plugin that provides seamless access to Zornade's comprehensive Italian cadastral parcel database via RapidAPI. The plugin is designed for GIS professionals, real estate analysts, urban planners, and researchers who need accurate and enriched cadastral data for their projects.
 
-## Features
+## Key Features
 
-- **Comprehensive Data**: Access to enriched cadastral parcels with geometry, administrative info, and risk assessments
-- **Bounding Box Queries**: Download parcels within any specified geographic area
-- **Batch Processing**: Efficient concurrent downloads (10 parcels per batch) for improved performance
-- **Secure Credentials**: Safe storage of API credentials with optional persistence
-- **Coordinate Transformation**: Automatic transformation from any CRS to EPSG:4326
-- **Processing Integration**: Full integration with QGIS Processing Framework
-- **Rich Attributes**: Including flood risk, landslide risk, seismic risk, land cover, demographics, and building statistics
-- **Error Handling**: Comprehensive error handling with detailed user feedback
+### 🏗️ **Professional Data Access**
+- **Comprehensive Dataset**: Access to over 10 million enriched Italian cadastral parcels
+- **Rich Attributes**: 17 data fields including administrative info, demographics, and risk assessments
+- **Accurate Geometries**: High-quality polygon and multipolygon geometries in EPSG:4326
+
+### ⚡ **Performance & Reliability**
+- **Intelligent Batch Processing**: Adaptive batch sizes (10-25 parcels) based on dataset size
+- **Robust Error Handling**: Comprehensive error recovery and user-friendly messages
+- **Rate Limiting**: Respectful API usage with automatic delays between batches
+- **Progress Monitoring**: Real-time progress reporting with detailed feedback
+
+### 🔧 **Professional Tools**
+- **QGIS Integration**: Full Processing Framework integration with algorithm dialog
+- **Coordinate Transformation**: Automatic CRS conversion with validation
+- **Secure Credentials**: Encrypted storage of API keys with optional persistence
+- **Large Dataset Support**: Optimized for processing thousands of parcels efficiently
+
+### 🛡️ **Production Ready**
+- **Extensive Validation**: Input validation and boundary checks
+- **Performance Warnings**: Alerts for large areas that may impact performance
+- **Detailed Logging**: Comprehensive error reporting and troubleshooting guidance
+- **Cancellation Support**: User can cancel long-running operations safely
 
 ## Installation
 
 ### From QGIS Plugin Repository (Recommended)
-1. Open QGIS
-2. Go to `Plugins` → `Manage and Install Plugins`
-3. Search for "Zornade Italian Parcel Downloader"
-4. Click `Install Plugin`
+1. Open QGIS and go to **Plugins** → **Manage and Install Plugins**
+2. Search for **"Zornade Italian Parcel Downloader"**
+3. Click **Install Plugin**
+4. The plugin will appear in the Processing Toolbox under **Zornade API**
 
 ### Manual Installation
-1. Download the plugin ZIP file
-2. Open QGIS
-3. Go to `Plugins` → `Manage and Install Plugins`
-4. Click `Install from ZIP`
-5. Select the downloaded ZIP file
+1. Download the latest release ZIP file
+2. In QGIS, go to **Plugins** → **Manage and Install Plugins**
+3. Click **Install from ZIP** and select the downloaded file
+4. Enable the plugin in the **Installed** tab
 
-## Requirements
+## Prerequisites
 
+### Software Requirements
 - **QGIS**: Version 3.16 or higher
-- **Internet Connection**: Required for API access
-- **RapidAPI Account**: Active subscription to Zornade's service
-- **Python Dependencies**: `requests` library (automatically available in QGIS)
+- **Internet Connection**: Stable connection for API access
+- **Operating System**: Windows, macOS, or Linux
 
-## API Access Setup
+### API Access Requirements
+- **RapidAPI Account**: Free registration at [rapidapi.com](https://rapidapi.com)
+- **Service Subscription**: Active subscription to [Zornade's Italian Cadastral API](https://rapidapi.com/abigdatacompany-abigdatacompany-default/api/enriched-cadastral-parcels-for-italy)
+- **API Credentials**: RapidAPI key and Bearer authorization token
 
-1. **Create RapidAPI Account**: Visit [RapidAPI](https://rapidapi.com)
-2. **Subscribe to Service**: Go to [Zornade's Italian Cadastral API](https://rapidapi.com/ageratlas/api/enriched-cadastral-parcels-for-italy)
-3. **Get Credentials**: 
-   - Copy your RapidAPI key from the dashboard
-   - Obtain the Bearer authorization token from the API documentation
-4. **Test Access**: Use the RapidAPI test console to verify your credentials
+## Quick Start Guide
 
-## Usage
+### 1. API Setup
+1. **Create RapidAPI Account**: Visit [rapidapi.com](https://rapidapi.com) and sign up
+2. **Subscribe to Service**: Navigate to the [API page](https://rapidapi.com/abigdatacompany-abigdatacompany-default/api/enriched-cadastral-parcels-for-italy) and subscribe
+3. **Get Credentials**:
+   - Copy your **X-RapidAPI-Key** from the dashboard
+   - Obtain the **Bearer token** from the API documentation
+4. **Test Access**: Use the RapidAPI test console to verify your credentials work
 
-### Processing Framework Method (Recommended)
-1. Open the **Processing Toolbox** (`Processing` → `Toolbox`)
-2. Navigate to **Zornade API** → **Zornade Parcel Downloader**
-3. Configure parameters:
-   - **RapidAPI Key**: Enter your RapidAPI key
-   - **Authorization Bearer Token**: Enter the token (without 'Bearer ' prefix)
-   - **Save Credentials**: Check to store credentials securely for future use
-   - **Bounding Box**: Define the area of interest
-4. Click **Run**
+### 2. Using the Plugin
+1. **Open Processing Toolbox**: Go to **Processing** → **Toolbox**
+2. **Navigate to Algorithm**: Expand **Zornade API** → **Zornade Italian Parcel Downloader**
+3. **Configure Parameters**:
+   - **RapidAPI Key**: Enter your API key
+   - **Authorization Bearer Token**: Enter token (without 'Bearer ' prefix)
+   - **Save Credentials**: Check to store securely for future use
+   - **Bounding Box**: Define your area of interest in Italy
+4. **Run Algorithm**: Click **Run** and monitor progress
 
-### Plugin Menu Method
-1. Click the Zornade plugin icon in the toolbar
-2. This will open the Processing algorithm dialog
-3. Follow the same configuration steps as above
+### 3. Working with Results
+- **Output Layer**: Automatically added to map with enriched attributes
+- **Attribute Table**: Access detailed parcel information
+- **Styling**: Apply symbology based on risk assessments or land use
+- **Analysis**: Use QGIS tools for spatial analysis and reporting
 
-## Output Data Structure
+## Data Structure
 
 The plugin creates a polygon layer with the following attributes:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| fid | String | Unique parcel identifier |
-| gml_id | String | GML identifier from cadastral system |
-| administrativeunit | String | Administrative unit code |
-| comune_name | String | Municipality name |
-| footprint_sqm | Double | Parcel area in square meters |
-| elevation_min | Double | Minimum elevation (meters) |
-| elevation_max | Double | Maximum elevation (meters) |
-| class | String | Land use classification |
-| subtype | String | Land use subtype |
-| landcover | String | Land cover type |
-| densita_abitativa | Double | Population density |
-| eta_media | Double | Average age of residents |
-| tasso_occupazione | Double | Employment rate |
-| flood_risk | String | Flood risk assessment |
-| landslide_risk | String | Landslide risk assessment |
-| seismic_risk | String | Seismic risk assessment |
-| buildings_count | Integer | Number of buildings on parcel |
+| `fid` | String | Unique parcel identifier |
+| `gml_id` | String | GML ID from cadastral system |
+| `administrativeunit` | String | Administrative unit code |
+| `comune_name` | String | Municipality name |
+| `footprint_sqm` | Double | Parcel area in square meters |
+| `elevation_min` | Double | Minimum elevation (meters) |
+| `elevation_max` | Double | Maximum elevation (meters) |
+| `class` | String | Primary land use classification |
+| `subtype` | String | Detailed land use subtype |
+| `landcover` | String | Land cover type |
+| `densita_abitativa` | Double | Population density |
+| `eta_media` | Double | Average age of residents |
+| `tasso_occupazione` | Double | Employment rate |
+| `flood_risk` | String | Flood risk assessment |
+| `landslide_risk` | String | Landslide risk assessment |
+| `seismic_risk` | String | Seismic risk assessment |
+| `buildings_count` | Integer | Number of buildings on parcel |
+
+## Performance Guidelines
+
+### Optimal Usage
+- **Small Areas**: Start with areas under 1 km² for testing
+- **Incremental Expansion**: Gradually increase area size based on performance
+- **Peak Hours**: Avoid peak usage times for faster processing
+- **Saved Credentials**: Use saved credentials to avoid re-entry
+
+### Performance Expectations
+| Area Size | Typical Parcels | Processing Time |
+|-----------|----------------|-----------------|
+| City Block | 10-50 parcels | 1-2 minutes |
+| Neighborhood | 100-500 parcels | 5-15 minutes |
+| Municipality | 1,000+ parcels | 20+ minutes |
+
+### Large Dataset Tips
+- **Break Into Chunks**: Process large areas in smaller sections
+- **Monitor Progress**: Use the progress bar and log messages
+- **Error Tolerance**: Plugin handles up to 10% errors automatically
+- **Stable Connection**: Ensure stable internet for large downloads
 
 ## Troubleshooting
 
 ### Common Issues
 
-**Authentication Errors**
-- Verify your RapidAPI key is correct
-- Ensure you have an active subscription
-- Check that the Bearer token is entered without the 'Bearer ' prefix
+#### Authentication Problems
+**Symptoms**: 401/403 errors, "Authentication failed" messages
+**Solutions**:
+- Verify RapidAPI key is correct and active
+- Ensure Bearer token is entered without 'Bearer ' prefix
+- Check subscription status on RapidAPI dashboard
+- Confirm API quota hasn't been exceeded
 
-**No Parcels Found**
-- Verify the bounding box covers an area in Italy
-- Try a smaller bounding box area
-- Check that the coordinate system is correct
+#### No Results Returned
+**Symptoms**: "No parcels found" message
+**Solutions**:
+- Verify bounding box covers area within Italy
+- Try smaller, more specific areas
+- Check coordinate system of input extent
+- Ensure area contains cadastral parcels
 
-**Network Timeouts**
-- Check your internet connection
-- Try processing smaller areas
-- Reduce batch size if experiencing frequent timeouts
+#### Performance Issues
+**Symptoms**: Slow processing, timeouts
+**Solutions**:
+- Reduce bounding box size
+- Check internet connection stability
+- Process during off-peak hours
+- Close other bandwidth-intensive applications
 
-**Geometry Errors**
-- The plugin automatically handles different geometry formats
-- Parcels without valid geometry are skipped with warnings
-- Check the log for specific geometry processing messages
+#### Geometry Errors
+**Symptoms**: Missing or invalid geometries
+**Solutions**:
+- Check error messages in log for specific issues
+- Verify API is returning valid geometry data
+- Report persistent geometry issues to support
 
-### Performance Tips
+### Error Codes Reference
 
-- Use smaller bounding boxes for faster processing
-- The plugin processes 10 parcels concurrently by default
-- Saved credentials eliminate the need to re-enter API keys
-- Progress is shown in the QGIS message bar and processing dialog
+| Code | Meaning | Action |
+|------|---------|--------|
+| 401 | Authentication failed | Check API credentials |
+| 403 | Access forbidden | Verify subscription status |
+| 404 | Parcel not found | Normal - some parcels may be unavailable |
+| 429 | Rate limit exceeded | Wait and retry with smaller area |
+| 500 | Server error | Retry later or contact support |
 
-## Support
+## Advanced Usage
 
-- **Issues**: Report bugs and request features on [GitHub Issues](https://github.com/zornade/qgis-italian-parcel-downloader/issues)
-- **Documentation**: Visit the [plugin homepage](https://rapidapi.com/ageratlas/api/enriched-cadastral-parcels-for-italy)
-- **API Support**: Contact RapidAPI support for API-related issues
+### Batch Processing
+For processing multiple areas:
+1. Save your credentials once
+2. Use QGIS Model Builder to automate multiple downloads
+3. Combine results using QGIS merge tools
 
-## License
+### Integration with Other Tools
+- **Database Import**: Export results to PostGIS, SpatiaLite, or other databases
+- **Analysis Workflows**: Integrate with QGIS processing models
+- **Reporting**: Use QGIS layout manager for professional reports
+- **Web Services**: Publish results via QGIS Server
 
-This plugin is licensed under the GNU General Public License v2.0 or later (GPL-2.0-or-later).
+### Custom Styling
+Example styling approaches:
+- **Risk Assessment**: Color-code by flood/landslide/seismic risk
+- **Land Use**: Categorize by class and subtype
+- **Demographics**: Style by population density or age
+- **Elevation**: Create elevation-based symbology
 
-## Credits
+## Support & Community
 
+### Getting Help
+- **Documentation**: This README and plugin help text
+- **Issues**: Report bugs on [GitHub Issues](https://github.com/zornade/qgis-italian-parcel-downloader/issues)
+- **API Support**: Contact RapidAPI support for service issues
+- **Community**: QGIS community forums for general GIS questions
+
+### Contributing
+We welcome contributions! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Submit a pull request with clear description
+4. Follow existing code style and documentation standards
+
+## License & Credits
+
+### License
+This plugin is licensed under the **GNU General Public License v2.0 or later (GPL-2.0-or-later)**.
+
+### Credits
 - **Developed by**: Zornade
 - **Data Provider**: Zornade's enriched Italian cadastral dataset
 - **API Platform**: RapidAPI
 - **Built for**: QGIS Processing Framework
+- **Geometry Processing**: QGIS geometry libraries
+- **Concurrent Processing**: Python concurrent.futures
 
-## Changelog
+### Acknowledgments
+- QGIS Development Team for the excellent Processing Framework
+- RapidAPI for reliable API hosting
+- Italian cadastral authorities for base data
+- QGIS community for feedback and testing
 
-### Version 1.0.0
-- Initial release
-- Download Italian cadastral parcels by bounding box query
-- Integration with QGIS Processing Framework
-- Secure API credential management with persistent storage
-- Batch processing with concurrent downloads
-- Automatic coordinate transformation
-- Support for polygon and multipolygon geometries
-- Comprehensive error handling and user feedback
-- Rich attribute data including risk assessments and demographics
+---
+
+**Version**: 1.0.0 | **Last Updated**: 2024 | **Maintained by**: Zornade Team

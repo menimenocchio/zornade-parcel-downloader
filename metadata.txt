@@ -2,33 +2,33 @@
 name=Zornade Italian Parcel Downloader
 qgisMinimumVersion=3.16
 qgisMaximumVersion=3.99
-description=Download Italian cadastral parcel data from Zornade's enriched dataset via RapidAPI
+description=Download enriched Italian cadastral parcel data from Zornade's comprehensive dataset via RapidAPI
 version=1.0.0
 author=Zornade
-email=info@zornade.com
+email=e.pascatti@gmail.com
 
-about=This plugin allows you to download Italian cadastral parcel data from Zornade's enriched cadastral dataset via RapidAPI directly into QGIS. The plugin provides access to enriched cadastral parcels with accurate geometries, administrative information, elevation data, land cover classification, and comprehensive risk assessments including flood, landslide, and seismic risks. Features include: automatic coordinate transformation, secure credential storage, batch processing with concurrent downloads for improved performance, comprehensive error handling, and seamless integration with the QGIS Processing Framework. Simply provide your RapidAPI credentials and define a bounding box to fetch detailed parcel geometries and attributes for analysis and visualization.
+about=Professional QGIS plugin for downloading enriched Italian cadastral parcel data from Zornade's comprehensive dataset via RapidAPI. Access detailed cadastral information including accurate geometries, administrative data, risk assessments (flood, landslide, seismic), land cover classification, demographic statistics, and elevation data. Features include: intelligent batch processing with adaptive sizing, robust error handling and recovery, secure credential management, automatic coordinate transformation, comprehensive progress reporting, and seamless QGIS Processing Framework integration. Designed for professionals in real estate, urban planning, environmental analysis, and GIS applications requiring accurate Italian cadastral data.
 
-tracker=https://github.com/zornade/qgis-italian-parcel-downloader/issues
-repository=https://github.com/zornade/qgis-italian-parcel-downloader
-homepage=https://rapidapi.com/ageratlas/api/enriched-cadastral-parcels-for-italy
+tracker=https://github.com/menimenocchio/zornade-parcel-downloader/issues
+repository=https://github.com/menimenocchio/zornade-parcel-downloader
+homepage=https://zornade.com
 
 # Recommended items:
 hasProcessingProvider=yes
-changelog=1.0.0 - Initial release
-    - Download Italian cadastral parcels by bounding box query
-    - Integration with QGIS Processing Framework
-    - Secure API credential management with persistent storage
-    - Batch processing with concurrent downloads (10 parcels per batch)
-    - Automatic coordinate transformation from any CRS to EPSG:4326
-    - Support for polygon and multipolygon geometries with rich attributes
-    - Comprehensive error handling and user feedback
-    - Risk assessment data including flood, landslide, and seismic risks
-    - Land cover and demographic information
-    - Elevation and building count statistics
+changelog=1.0.0 - Production release
+    - Professional-grade error handling and recovery
+    - Adaptive batch processing (10-25 parcels per batch based on dataset size)
+    - Intelligent rate limiting and API respect
+    - Comprehensive progress reporting and user feedback
+    - Robust geometry processing supporting Polygon and MultiPolygon formats
+    - Safe data type conversion and validation
+    - Secure credential storage with encryption
+    - Performance optimization for large datasets
+    - User-friendly error messages and troubleshooting guidance
+    - Production-ready stability and reliability improvements
 
 # Tags are comma separated with spaces allowed
-tags=italy,cadastral,parcel,property,api,rapidapi,zornade,processing,data,download,geometry,real estate,land use,risk assessment
+tags=italy,cadastral,parcel,property,api,rapidapi,zornade,processing,data,download,geometry,real estate,land use,risk assessment,professional,gis
 
 category=Web
 icon=icon.png
@@ -43,3 +43,6 @@ license=GPL-2.0-or-later
 
 # External dependencies
 external_deps=requests
+
+# Plugin classification
+plugin_type=professional
