@@ -10,7 +10,7 @@
 """
 
 def classFactory(iface):
-    """Load ZornadeParcelDownloader class from file ZornadeParcelDownloader.
+    """Load ZornadeParcelDownloader class from file zornade_parcel_downloader.
 
     :param iface: A QGIS interface instance.
     :type iface: QgsInterface

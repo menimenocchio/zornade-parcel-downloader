@@ -35,11 +35,11 @@ class ParcelDownloaderProvider(QgsProcessingProvider):
 
     def name(self):
         """Return the provider name."""
-        return 'zornade API'
+        return 'Zornade API'
 
     def longName(self):
         """Return the full provider name."""
-        return 'zornade Parcel Downloader'
+        return 'Zornade Parcel Downloader'
 
     def icon(self):
         """Return the provider icon."""

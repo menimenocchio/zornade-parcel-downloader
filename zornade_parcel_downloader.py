@@ -18,7 +18,7 @@ from qgis.core import QgsApplication
 from .parcel_downloader_provider import ParcelDownloaderProvider
 
 
-class AgeratlasParcelDownloader:
+class ZornadeParcelDownloader:
     """QGIS Plugin Implementation."""
 
     def __init__(self, iface):
@@ -76,44 +76,7 @@ class AgeratlasParcelDownloader:
         status_tip=None,
         whats_this=None,
         parent=None):
-        """Add a toolbar icon to the toolbar.
-
-        :param icon_path: Path to the icon for this action. Can be a resource
-            path (e.g. ':/plugins/foo/bar.png') or a normal file system path.
-        :type icon_path: str
-
-        :param text: Text that should be shown in menu items for this action.
-        :type text: str
-
-        :param callback: Function to be called when the action is triggered.
-        :type callback: function
-
-        :param enabled_flag: A flag indicating if the action should be enabled
-            by default. Defaults to True.
-        :type enabled_flag: bool
-
-        :param add_to_menu: Flag indicating whether the action should also
-            be added to the menu. Defaults to True.
-        :type add_to_menu: bool
-
-        :param add_to_toolbar: Flag indicating whether the action should also
-            be added to the toolbar. Defaults to True.
-        :type add_to_toolbar: bool
-
-        :param status_tip: Optional text to show in a popup when mouse pointer
-            hovers over the action.
-        :type status_tip: str
-
-        :param parent: Parent widget for the new action. Defaults None.
-        :type parent: QWidget
-
-        :param whats_this: Optional text to show in the status bar when the
-            mouse pointer hovers over the action.
-
-        :returns: The action that was created. Note that the action is also
-            added to self.actions list.
-        :rtype: QAction
-        """
+        """Add a toolbar icon to the toolbar."""
 
         icon = QIcon(icon_path)
         action = QAction(icon, text, parent)
@@ -161,7 +124,7 @@ class AgeratlasParcelDownloader:
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
             self.iface.removePluginWebMenu(
-                self.tr(u'&zornade Parcel Downloader'),
+                self.tr(u'&Zornade Parcel Downloader'),
                 action)
             self.iface.removeToolBarIcon(action)
 
@@ -171,16 +134,13 @@ class AgeratlasParcelDownloader:
 
     def run(self):
         """Run method that opens the Processing algorithm."""
-        # Import processing and run the algorithm directly
         from qgis import processing
         
-        # Run the algorithm directly
         try:
-            processing.execAlgorithmDialog('zornadeapi:ageratlasparceldownloader')  # Update algorithm ID
+            processing.execAlgorithmDialog('zornadeapi:ZornadeParcelDownloader')
         except Exception as e:
             # Fallback: try to open processing toolbox via menu
             try:
-                # Access processing toolbox through menu
                 from qgis.utils import iface
                 from qgis.PyQt.QtWidgets import QApplication
                 
@@ -203,10 +163,10 @@ class AgeratlasParcelDownloader:
                 from qgis.PyQt.QtWidgets import QMessageBox
                 QMessageBox.information(
                     iface.mainWindow(),
-                    "zornade Parcel Downloader",
+                    "Zornade Parcel Downloader",
                     "Please open the Processing Toolbox manually:\n"
                     "Processing → Toolbox\n\n"
-                    "Then navigate to: zornade API → zornade Parcel Downloader"
+                    "Then navigate to: Zornade API → Zornade Parcel Downloader"
                 )
                 
             except Exception as e2:
@@ -214,8 +174,8 @@ class AgeratlasParcelDownloader:
                 from qgis.PyQt.QtWidgets import QMessageBox
                 QMessageBox.information(
                     iface.mainWindow(),
-                    "zornade Parcel Downloader",
+                    "Zornade Parcel Downloader",
                     "Please open the Processing Toolbox manually:\n"
                     "Processing → Toolbox\n\n"
-                    "Then navigate to: zornade API → zornade Parcel Downloader"
+                    "Then navigate to: Zornade API → Zornade Parcel Downloader"
                 )
