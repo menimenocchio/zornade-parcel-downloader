@@ -16,7 +16,7 @@ from .ParcelDownloader import ParcelDownloaderAlgorithm
 
 
 class ParcelDownloaderProvider(QgsProcessingProvider):
-    """Processing Provider for zornade Parcel Downloader algorithms."""
+    """Processing Provider for Zornade Italian Parcel Downloader algorithms."""
 
     def __init__(self):
         QgsProcessingProvider.__init__(self)
@@ -39,7 +39,7 @@ class ParcelDownloaderProvider(QgsProcessingProvider):
 
     def longName(self):
         """Return the full provider name."""
-        return 'Zornade Parcel Downloader'
+        return 'Zornade Italian Parcel Downloader'
 
     def icon(self):
         """Return the provider icon."""

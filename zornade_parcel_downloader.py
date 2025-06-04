@@ -19,7 +19,7 @@ from .parcel_downloader_provider import ParcelDownloaderProvider
 
 
 class ZornadeParcelDownloader:
-    """QGIS Plugin Implementation."""
+    """QGIS Plugin Implementation for Zornade Italian Parcel Downloader."""
 
     def __init__(self, iface):
         """Constructor.
@@ -47,7 +47,7 @@ class ZornadeParcelDownloader:
 
         # Declare instance attributes
         self.actions = []
-        self.menu = self.tr(u'&Zornade Parcel Downloader')
+        self.menu = self.tr(u'&Zornade Italian Parcel Downloader')
 
         # Initialize processing provider
         self.provider = None
@@ -108,8 +108,10 @@ class ZornadeParcelDownloader:
         icon_path = os.path.join(self.plugin_dir, 'icon.png')
         self.add_action(
             icon_path,
-            text=self.tr(u'Download Parcels'),
+            text=self.tr(u'Download Italian Parcels'),
             callback=self.run,
+            status_tip=self.tr(u'Download Italian cadastral parcels from Zornade'),
+            whats_this=self.tr(u'Download enriched Italian cadastral parcel data from Zornade\'s comprehensive dataset'),
             parent=self.iface.mainWindow())
 
         # Initialize processing provider
@@ -124,7 +126,7 @@ class ZornadeParcelDownloader:
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
             self.iface.removePluginWebMenu(
-                self.tr(u'&Zornade Parcel Downloader'),
+                self.tr(u'&Zornade Italian Parcel Downloader'),
                 action)
             self.iface.removeToolBarIcon(action)
 
@@ -163,7 +165,7 @@ class ZornadeParcelDownloader:
                 from qgis.PyQt.QtWidgets import QMessageBox
                 QMessageBox.information(
                     iface.mainWindow(),
-                    "Zornade Parcel Downloader",
+                    "Zornade Italian Parcel Downloader",
                     "Please open the Processing Toolbox manually:\n"
                     "Processing → Toolbox\n\n"
                     "Then navigate to: Zornade API → Zornade Parcel Downloader"
@@ -174,7 +176,7 @@ class ZornadeParcelDownloader:
                 from qgis.PyQt.QtWidgets import QMessageBox
                 QMessageBox.information(
                     iface.mainWindow(),
-                    "Zornade Parcel Downloader",
+                    "Zornade Italian Parcel Downloader",
                     "Please open the Processing Toolbox manually:\n"
                     "Processing → Toolbox\n\n"
                     "Then navigate to: Zornade API → Zornade Parcel Downloader"

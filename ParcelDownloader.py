@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """
 /***************************************************************************
- zornade Parcel Downloader
+ Zornade Italian Parcel Downloader
                                  A QGIS plugin
- Downloads parcel data from the zornade API and loads it into QGIS.
+ Downloads enriched Italian cadastral parcel data from Zornade's dataset via RapidAPI.
                               -------------------
-        begin                : 2023-10-10
+        begin                : 2024-01-01
         git sha              : $Format:%H$
-        copyright            : (C) 2023 by Your Name
-        email                : your.email@example.com
+        copyright            : (C) 2024 by Zornade
+        email                : info@zornade.com
  ***************************************************************************/
 """
 
@@ -58,8 +58,8 @@ import requests # Required for API calls
 
 class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
     """
-    This algorithm fetches parcel data from the zornade RapidAPI service
-    and loads it into QGIS.
+    This algorithm fetches enriched Italian cadastral parcel data from 
+    Zornade's comprehensive dataset via RapidAPI service and loads it into QGIS.
     """
 
     # --- Parameter definition ---
@@ -97,7 +97,7 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
         """
         Returns the translated algorithm name.
         """
-        return self.tr("Zornade Parcel Downloader")
+        return self.tr("Zornade Italian Parcel Downloader")
 
     def group(self):
         """
@@ -116,20 +116,30 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
         Returns a localised short helper string for the algorithm.
         """
         return self.tr(
-            "Downloads Italian cadastral parcel data from the AgerAtlas API based on bounding box.\n\n"
-            "You need both a RapidAPI key and an Authorization Bearer Token to use this service.\n\n"
-            "To get your credentials:\n"
-            "1. Visit https://rapidapi.com/ageratlas/api/enriched-cadastral-parcels-for-italy\n"
-            "2. Subscribe to the service\n"
-            "3. Copy your RapidAPI key from the dashboard\n"
-            "4. Get the Bearer token from the API documentation or test console\n\n"
-            "Note: Enter only the token part (without 'Bearer ' prefix) in the Authorization field.\n"
-            "Your credentials will be stored securely in QGIS settings if you choose to save them."
+            "Downloads enriched Italian cadastral parcel data from Zornade's comprehensive dataset via RapidAPI based on bounding box query.\n\n"
+            "This algorithm provides access to detailed cadastral information including geometries, administrative data, "
+            "risk assessments (flood, landslide, seismic), land cover classification, demographic statistics, and elevation data.\n\n"
+            "Requirements:\n"
+            "• RapidAPI account with active subscription to Zornade's service\n"
+            "• RapidAPI key from your dashboard\n"
+            "• Authorization Bearer Token from the API documentation\n\n"
+            "Setup Instructions:\n"
+            "1. Visit https://rapidapi.com/abigdatacompany-abigdatacompany-default/api/enriched-cadastral-parcels-for-italy\n"
+            "2. Subscribe to Zornade's Italian Cadastral Parcels service\n"
+            "3. Copy your x-rapidapi-key from the RapidAPI dashboard\n"
+            "4. Obtain the Bearer token from the API documentation or test console\n\n"
+            "Usage:\n"
+            "• Enter your RapidAPI key and authorization token (without 'Bearer ' prefix)\n"
+            "• Define a bounding box covering your area of interest in Italy\n"
+            "• Choose whether to save credentials securely for future sessions\n"
+            "• The algorithm will automatically transform coordinates and download parcels in batches\n\n"
+            "Output:\n"
+            "A polygon layer with enriched attributes including risk assessments, demographics, and land use data."
         )
 
     def helpUrl(self):
-        # Optional: return a URL to a more detailed help page
-        return "https://github.com/your-repo/zornade-parcel-downloader/blob/main/README.md"
+        """Return URL to detailed documentation."""
+        return "https://github.com/zornade/qgis-italian-parcel-downloader/blob/main/README.md"
 
     def __init__(self):
         super().__init__()
@@ -384,7 +394,7 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
             
             feedback.setProgress(0)
             processed_count = 0
-            batch_size = 10  # Download 10 parcels concurrently
+            batch_size = 50  # Download 50 parcels concurrently
             
             # Create a thread-safe lock for updating progress
             progress_lock = threading.Lock()

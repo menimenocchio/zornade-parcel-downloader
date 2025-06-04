@@ -1,28 +1,45 @@
 [general]
-name=Zornade Parcel Downloader
+name=Zornade Italian Parcel Downloader
 qgisMinimumVersion=3.16
-description=Download parcel data from zornade.com RapidAPI service
+qgisMaximumVersion=3.99
+description=Download Italian cadastral parcel data from Zornade's enriched dataset via RapidAPI
 version=1.0.0
-author=Enrico Pascatti
-email=e.pascatti@gmail.com
+author=Zornade
+email=info@zornade.com
 
-about=This plugin allows you to download Italian parcel data from the zornade RapidAPI service directly into QGIS. Simply provide your RapidAPI credentials and define a bounding box to fetch parcel geometries and attributes. The plugin integrates with the QGIS Processing Framework for easy access.
+about=This plugin allows you to download Italian cadastral parcel data from Zornade's enriched cadastral dataset via RapidAPI directly into QGIS. The plugin provides access to enriched cadastral parcels with accurate geometries, administrative information, elevation data, land cover classification, and comprehensive risk assessments including flood, landslide, and seismic risks. Features include: automatic coordinate transformation, secure credential storage, batch processing with concurrent downloads for improved performance, comprehensive error handling, and seamless integration with the QGIS Processing Framework. Simply provide your RapidAPI credentials and define a bounding box to fetch detailed parcel geometries and attributes for analysis and visualization.
 
-tracker=https://github.com/menimenocchio/ageratlas-parcel-downloader/issues
-repository=https://github.com/menimenocchio/ageratlas-parcel-downloader
+tracker=https://github.com/zornade/qgis-italian-parcel-downloader/issues
+repository=https://github.com/zornade/qgis-italian-parcel-downloader
+homepage=https://rapidapi.com/ageratlas/api/enriched-cadastral-parcels-for-italy
 
 # Recommended items:
 hasProcessingProvider=yes
-changelog=1.0.0 - Initial release with bounding box parcel download functionality
+changelog=1.0.0 - Initial release
+    - Download Italian cadastral parcels by bounding box query
+    - Integration with QGIS Processing Framework
+    - Secure API credential management with persistent storage
+    - Batch processing with concurrent downloads (10 parcels per batch)
+    - Automatic coordinate transformation from any CRS to EPSG:4326
+    - Support for polygon and multipolygon geometries with rich attributes
+    - Comprehensive error handling and user feedback
+    - Risk assessment data including flood, landslide, and seismic risks
+    - Land cover and demographic information
+    - Elevation and building count statistics
 
 # Tags are comma separated with spaces allowed
-tags=parcel,cadastral,italy,api,rapidapi,zornade,processing
+tags=italy,cadastral,parcel,property,api,rapidapi,zornade,processing,data,download,geometry,real estate,land use,risk assessment
 
-homepage=https://zornade.com
 category=Web
 icon=icon.png
 experimental=False
 deprecated=False
 
-# If the plugin can run on QGIS Server.
+# Plugin supports QGIS Server
 server=False
+
+# Plugin license
+license=GPL-2.0-or-later
+
+# External dependencies
+external_deps=requests
