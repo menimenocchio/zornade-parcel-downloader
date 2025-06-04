@@ -25,6 +25,8 @@
 
 import os
 from typing import Any, Optional
+import concurrent.futures
+import threading
 
 from qgis.PyQt.QtCore import QCoreApplication, QSettings
 from qgis.core import (
@@ -377,65 +379,119 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
                 feedback.pushWarning(self.tr("No parcels found in the specified bounding box"))
                 return {self.OUTPUT_PARCELS: dest_id}
 
-            # Step 2: Get detailed information for each parcel
+            # Step 2: Get detailed information for each parcel (batch processing)
             get_info_url = "{}/get-parcel-info".format(self.API_BASE_URL)
             
             feedback.setProgress(0)
             processed_count = 0
+            batch_size = 10  # Download 10 parcels concurrently
             
-            for i, fid in enumerate(parcel_fids):
+            # Create a thread-safe lock for updating progress
+            progress_lock = threading.Lock()
+            
+            def download_parcel_info(fid_batch_info):
+                """Download info for a single parcel. Returns (fid, success, feature_data_or_error)"""
+                fid, batch_index, total_in_batch = fid_batch_info
+                
+                try:
+                    info_payload = {"fid": str(fid)}
+                    info_response = requests.post(get_info_url, headers=headers, json=info_payload, timeout=15)
+                    
+                    if info_response.status_code == 200:
+                        info_data = info_response.json()
+                        
+                        # Handle the get-parcel-info response format
+                        if info_data.get("success") and "data" in info_data:
+                            return (fid, True, info_data["data"])
+                        else:
+                            return (fid, False, f"Invalid response: {str(info_data)}")
+                    else:
+                        return (fid, False, f"HTTP {info_response.status_code}: {info_response.text}")
+                        
+                except Exception as e:
+                    return (fid, False, f"Exception: {str(e)}")
+            
+            # Process parcels in batches
+            total_parcels = len(parcel_fids)
+            
+            for batch_start in range(0, total_parcels, batch_size):
                 if feedback.isCanceled():
                     break
                 
-                feedback.pushInfo(self.tr("Processing parcel FID: {}".format(fid)))
+                batch_end = min(batch_start + batch_size, total_parcels)
+                current_batch = parcel_fids[batch_start:batch_end]
+                batch_num = (batch_start // batch_size) + 1
+                total_batches = (total_parcels + batch_size - 1) // batch_size
                 
-                info_payload = {"fid": str(fid)}
-                info_response = requests.post(get_info_url, headers=headers, json=info_payload, timeout=15)
+                feedback.pushInfo(self.tr("Processing batch {}/{}: {} parcels (FIDs: {})".format(
+                    batch_num, total_batches, len(current_batch), ", ".join(map(str, current_batch))
+                )))
                 
-                if info_response.status_code == 200:
-                    info_data = info_response.json()
+                # Prepare batch with additional info for progress tracking
+                batch_with_info = [(fid, i, len(current_batch)) for i, fid in enumerate(current_batch)]
+                
+                # Download batch concurrently
+                with concurrent.futures.ThreadPoolExecutor(max_workers=batch_size) as executor:
+                    future_to_fid = {
+                        executor.submit(download_parcel_info, fid_info): fid_info[0] 
+                        for fid_info in batch_with_info
+                    }
                     
-                    # Handle the get-parcel-info response format: {"success":true,"data":{...},"meta":{...}}
-                    if info_data.get("success") and "data" in info_data:
-                        parcel_info = info_data["data"]
-                    else:
-                        feedback.pushWarning(self.tr("Invalid response for parcel FID {}: {}".format(fid, str(info_data))))
-                        continue
-                    
-                    # Create QGIS feature
-                    feat = QgsFeature(fields)
-                    
-                    # Set attributes from API response - use the actual data structure
-                    feat["fid"] = str(fid)
-                    feat["gml_id"] = parcel_info.get("gml_id", "")
-                    feat["administrativeunit"] = parcel_info.get("administrativeunit", "")
-                    feat["comune_name"] = parcel_info.get("comune_name", "")
-                    feat["footprint_sqm"] = parcel_info.get("footprint_sqm", 0.0)
-                    feat["elevation_min"] = parcel_info.get("elevation_min", 0.0)
-                    feat["elevation_max"] = parcel_info.get("elevation_max", 0.0)
-                    feat["class"] = parcel_info.get("class", "")
-                    feat["subtype"] = parcel_info.get("subtype", "")
-                    feat["landcover"] = parcel_info.get("landcover", "")
-                    feat["densita_abitativa"] = parcel_info.get("densita_abitativa", 0.0)
-                    feat["eta_media"] = parcel_info.get("eta_media", 0.0)
-                    feat["tasso_occupazione"] = parcel_info.get("tasso_occupazione", 0.0)
-                    feat["flood_risk"] = parcel_info.get("flood_risk", "")
-                    feat["landslide_risk"] = parcel_info.get("landslide_risk", "")
-                    feat["seismic_risk"] = parcel_info.get("seismic_risk", "")
-                    feat["buildings_count"] = parcel_info.get("buildings_count", 0)
-                    
-                    # Handle geometry if provided
-                    if "geom" in parcel_info and parcel_info["geom"]:
-                        geom_data = parcel_info["geom"]
+                    batch_results = []
+                    for future in concurrent.futures.as_completed(future_to_fid):
+                        if feedback.isCanceled():
+                            # Cancel remaining futures
+                            for f in future_to_fid:
+                                f.cancel()
+                            break
+                            
                         try:
-                            if isinstance(geom_data, dict):
-                                # Handle GeoJSON format - convert to WKT first
-                                try:
-                                    # Extract coordinates from GeoJSON and create WKT
+                            result = future.result()
+                            batch_results.append(result)
+                        except Exception as e:
+                            fid = future_to_fid[future]
+                            batch_results.append((fid, False, f"Future exception: {str(e)}"))
+                
+                # Process results from this batch
+                for fid, success, data_or_error in batch_results:
+                    if feedback.isCanceled():
+                        break
+                    
+                    if success:
+                        parcel_info = data_or_error
+                        
+                        # Create QGIS feature
+                        feat = QgsFeature(fields)
+                        
+                        # Set attributes from API response
+                        feat["fid"] = str(fid)
+                        feat["gml_id"] = parcel_info.get("gml_id", "")
+                        feat["administrativeunit"] = parcel_info.get("administrativeunit", "")
+                        feat["comune_name"] = parcel_info.get("comune_name", "")
+                        feat["footprint_sqm"] = parcel_info.get("footprint_sqm", 0.0)
+                        feat["elevation_min"] = parcel_info.get("elevation_min", 0.0)
+                        feat["elevation_max"] = parcel_info.get("elevation_max", 0.0)
+                        feat["class"] = parcel_info.get("class", "")
+                        feat["subtype"] = parcel_info.get("subtype", "")
+                        feat["landcover"] = parcel_info.get("landcover", "")
+                        feat["densita_abitativa"] = parcel_info.get("densita_abitativa", 0.0)
+                        feat["eta_media"] = parcel_info.get("eta_media", 0.0)
+                        feat["tasso_occupazione"] = parcel_info.get("tasso_occupazione", 0.0)
+                        feat["flood_risk"] = parcel_info.get("flood_risk", "")
+                        feat["landslide_risk"] = parcel_info.get("landslide_risk", "")
+                        feat["seismic_risk"] = parcel_info.get("seismic_risk", "")
+                        feat["buildings_count"] = parcel_info.get("buildings_count", 0)
+                        
+                        # Handle geometry if provided
+                        geometry_processed = False
+                        if "geom" in parcel_info and parcel_info["geom"]:
+                            geom_data = parcel_info["geom"]
+                            try:
+                                if isinstance(geom_data, dict):
+                                    # Handle GeoJSON format - convert to WKT first
                                     if geom_data.get("type") == "MultiPolygon":
                                         coordinates = geom_data.get("coordinates", [])
                                         if coordinates:
-                                            # Build WKT from coordinates
                                             polygons = []
                                             for polygon in coordinates:
                                                 rings = []
@@ -460,91 +516,55 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
                                     
                                     if not qgis_geom.isEmpty() and qgis_geom.isGeosValid():
                                         feat.setGeometry(qgis_geom)
-                                        if i == 0:  # Log success for first geometry
+                                        geometry_processed = True
+                                        if processed_count == 0:  # Log success for first geometry
                                             feedback.pushInfo(self.tr("Successfully parsed GeoJSON geometry as WKT"))
-                                    else:
-                                        feedback.pushWarning(self.tr("Invalid geometry for parcel FID {}".format(fid)))
-                                        continue
-                                except Exception as geojson_error:
-                                    feedback.pushWarning(self.tr("Error converting GeoJSON to WKT for parcel FID {}: {}".format(fid, str(geojson_error))))
-                                    continue
-                            elif isinstance(geom_data, str):
-                                # Handle different string formats
-                                if len(geom_data) > 20 and all(c in '0123456789ABCDEFabcdef' for c in geom_data):
-                                    # WKB hex string from PostGIS
-                                    try:
+                                elif isinstance(geom_data, str):
+                                    # Handle different string formats
+                                    if len(geom_data) > 20 and all(c in '0123456789ABCDEFabcdef' for c in geom_data):
+                                        # WKB hex string from PostGIS
                                         wkb_bytes = bytes.fromhex(geom_data)
                                         qgis_geom = QgsGeometry()
                                         qgis_geom.fromWkb(wkb_bytes)
                                         
                                         if not qgis_geom.isEmpty() and qgis_geom.isGeosValid():
                                             feat.setGeometry(qgis_geom)
-                                        else:
-                                            feedback.pushWarning(self.tr("Invalid WKB geometry for parcel FID {}".format(fid)))
-                                            continue
-                                    except Exception as wkb_error:
-                                        feedback.pushWarning(self.tr("Error parsing WKB geometry for parcel FID {}: {}".format(fid, str(wkb_error))))
-                                        continue
+                                            geometry_processed = True
                                 else:
                                     # Try as WKT format
                                     qgis_geom = QgsGeometry.fromWkt(geom_data)
                                     if not qgis_geom.isEmpty():
                                         feat.setGeometry(qgis_geom)
-                                    else:
-                                        feedback.pushWarning(self.tr("Could not parse geometry string for parcel FID {}".format(fid)))
-                                        continue
-                            elif isinstance(geom_data, bytes):
-                                # Handle raw WKB bytes
-                                qgis_geom = QgsGeometry()
-                                qgis_geom.fromWkb(geom_data)
-                                if not qgis_geom.isEmpty():
-                                    feat.setGeometry(qgis_geom)
-                                else:
-                                    feedback.pushWarning(self.tr("Invalid WKB bytes for parcel FID {}".format(fid)))
+                                        geometry_processed = True
+                                
+                                if not geometry_processed:
+                                    feedback.pushWarning(self.tr("Could not process geometry for parcel FID {}".format(fid)))
                                     continue
-                            else:
-                                feedback.pushWarning(self.tr("Unexpected geometry format for parcel FID {}".format(fid)))
+                                    
+                            except Exception as e:
+                                feedback.pushWarning(self.tr("Error processing geometry for parcel FID {}: {}".format(fid, str(e))))
                                 continue
-                        except Exception as e:
-                            feedback.pushWarning(self.tr("Error processing geometry for parcel FID {}: {}".format(fid, str(e))))
+                        else:
+                            feedback.pushWarning(self.tr("No geometry data for parcel FID {} - skipping".format(fid)))
                             continue
-                    elif "geometry" in parcel_info and parcel_info["geometry"]:
-                        # Fallback to "geometry" field for backward compatibility
-                        geom_data = parcel_info["geometry"]
-                        try:
-                            if isinstance(geom_data, dict):
-                                import json
-                                geom_json = json.dumps(geom_data)
-                                qgis_geom = QgsGeometry.fromGeoJson(geom_json)
-                            else:
-                                qgis_geom = QgsGeometry.fromGeoJson(str(geom_data))
-                            
-                            if not qgis_geom.isEmpty():
-                                feat.setGeometry(qgis_geom)
-                            else:
-                                feedback.pushWarning(self.tr("Invalid fallback geometry for parcel FID {}".format(fid)))
-                                continue
-                        except Exception as e:
-                            feedback.pushWarning(self.tr("Error processing fallback geometry for parcel FID {}: {}".format(fid, str(e))))
-                            continue
-                    else:
-                        # No geometry provided - skip this feature
-                        feedback.pushWarning(self.tr("No geometry data for parcel FID {} - skipping".format(fid)))
-                        continue
 
-                    sink.addFeature(feat, QgsFeatureSink.Flag.FastInsert)
-                    processed_count += 1
-                    
-                else:
-                    feedback.pushWarning(self.tr("Failed to get info for parcel FID {}: {} - {}".format(
-                        fid, info_response.status_code, info_response.text
-                    )))
+                        sink.addFeature(feat, QgsFeatureSink.Flag.FastInsert)
+                        processed_count += 1
+                        
+                    else:
+                        feedback.pushWarning(self.tr("Failed to get info for parcel FID {}: {}".format(fid, data_or_error)))
                 
-                # Update progress
-                progress = int((i + 1) / len(parcel_fids) * 100)
+                # Update progress after each batch
+                progress = int((batch_end) / total_parcels * 100)
                 feedback.setProgress(progress)
+                
+                feedback.pushInfo(self.tr("Batch {}/{} completed. Successfully processed: {} parcels total".format(
+                    batch_num, total_batches, processed_count
+                )))
             
-            feedback.pushInfo(self.tr("Successfully processed {} parcels".format(processed_count)))
+            feedback.pushInfo(self.tr("All batches completed. Successfully processed {} out of {} parcels".format(
+                processed_count, total_parcels
+            )))
             
         except requests.exceptions.RequestException as e:
             feedback.reportError(self.tr("Network error: {}".format(str(e))), fatalError=True)
