@@ -1,0 +1,28 @@
+[general]
+name=zornade Parcel Downloader
+qgisMinimumVersion=3.16
+description=Download parcel data from zornade.com RapidAPI service
+version=1.0.0
+author=Enrico Pascatti
+email=e.pascatti@gmail.com
+
+about=This plugin allows you to download Italian parcel data from the zornade RapidAPI service directly into QGIS. Simply provide your RapidAPI credentials and define a bounding box to fetch parcel geometries and attributes. The plugin integrates with the QGIS Processing Framework for easy access.
+
+tracker=https://github.com/menimenocchio/ageratlas-parcel-downloader/issues
+repository=https://github.com/menimenocchio/ageratlas-parcel-downloader
+
+# Recommended items:
+hasProcessingProvider=yes
+changelog=1.0.0 - Initial release with bounding box parcel download functionality
+
+# Tags are comma separated with spaces allowed
+tags=parcel,cadastral,italy,api,rapidapi,zornade,processing
+
+homepage=https://zornade.com
+category=Web
+icon=icon.png
+experimental=False
+deprecated=False
+
+# If the plugin can run on QGIS Server.
+server=False

@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+"""
+/***************************************************************************
+ zornade Parcel Downloader
+                                 A QGIS plugin
+ Downloads parcel data from the zornade API and loads it into QGIS.
+                              -------------------
+        begin                : 2023-10-10
+        git sha              : $Format:%H$
+        copyright            : (C) 2023 by Your Name
+        email                : your.email@example.com
+ ***************************************************************************/
+"""
+
 """
 ***************************************************************************
 *                                                                         *
@@ -12,7 +26,7 @@
 import os
 from typing import Any, Optional
 
-from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication, QSettings
 from qgis.core import (
     QgsFeatureSink,
     QgsProcessing,
@@ -26,7 +40,6 @@ from qgis.core import (
     QgsProcessingParameterExtent,
     QgsProcessingParameterBoolean,
     QgsProcessingParameterNumber,
-    QgsProcessingParameterAuthConfig,
     QgsFields,
     QgsField,
     QgsWkbTypes,
@@ -34,17 +47,16 @@ from qgis.core import (
     QgsGeometry,
     QgsPointXY,
     QgsProject,
-    QgsSettings,
-    QgsApplication,
-    QgsAuthMethodConfig
+    QgsCoordinateReferenceSystem,
+    QgsCoordinateTransform,
+    QgsRectangle
 )
-from qgis import processing
 import requests # Required for API calls
 
 
 class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
     """
-    This algorithm fetches parcel data from the Ageratlas RapidAPI service
+    This algorithm fetches parcel data from the zornade RapidAPI service
     and loads it into QGIS.
     """
 
@@ -58,10 +70,9 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
     OUTPUT_PARCELS = "OUTPUT_PARCELS"
 
     # --- API Configuration ---
-    API_BASE_URL = "https://ageratlas.p.rapidapi.com"
-    SETTINGS_GROUP = "AgeratlasParcelDownloader"
+    API_BASE_URL = "https://zornade.p.rapidapi.com"
+    SETTINGS_GROUP = "ZornadeParcelDownloader"
     SETTINGS_API_KEY = "rapidApiKey"
-
 
     def tr(self, string):
         """
@@ -69,51 +80,51 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
         """
         return QCoreApplication.translate("Processing", string)
 
-    def name(self) -> str:
+    def createInstance(self):
+        return ParcelDownloaderAlgorithm()
+
+    def name(self):
         """
         Returns the algorithm name, used for identifying the algorithm.
         """
-        return "ageratlasparceldownloader"
+        return "ZornadeParcelDownloader"
 
-    def displayName(self) -> str:
+    def displayName(self):
         """
         Returns the translated algorithm name.
         """
-        return self.tr("Ageratlas Parcel Downloader")
+        return self.tr("zornade Parcel Downloader")
 
-    def group(self) -> str:
+    def group(self):
         """
         Returns the name of the group this algorithm belongs to.
         """
-        return self.tr("Ageratlas API")
+        return self.tr("zornade API")
 
-    def groupId(self) -> str:
+    def groupId(self):
         """
         Returns the unique ID of the group this algorithm belongs to.
         """
-        return "ageratlasapi"
+        return "zornadeapi"
 
-    def shortHelpString(self) -> str:
+    def shortHelpString(self):
         """
         Returns a localised short helper string for the algorithm.
         """
         return self.tr(
-            "Downloads parcel data from the Ageratlas API based on municipality or bounding box.\n\n"
+            "Downloads parcel data from the zornade API based on bounding box.\n\n"
             "You need a RapidAPI key to use this service. Enter your API key in the 'RapidAPI Key' field below. "
             "You can optionally save it for future use by checking 'Save API key for future sessions'.\n\n"
             "To get your API key:\n"
-            "1. Visit https://rapidapi.com/ageratlas/api/ageratlas\n"
+            "1. Visit https://rapidapi.com/zornade/api/zornade\n"
             "2. Subscribe to the service\n"
             "3. Copy your API key from the dashboard\n\n"
             "Your API key will be stored securely in QGIS settings if you choose to save it."
         )
 
-    def helpUrl(self) -> str:
+    def helpUrl(self):
         # Optional: return a URL to a more detailed help page
-        return "https://github.com/your-repo/ageratlas-parcel-downloader/blob/main/README.md" # Replace with your repo
-
-    def createInstance(self):
-        return ParcelDownloaderAlgorithm()
+        return "https://github.com/your-repo/zornade-parcel-downloader/blob/main/README.md"
 
     def __init__(self):
         super().__init__()
@@ -123,11 +134,9 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
         Defines the inputs and outputs of the algorithm.
         """
         # --- API Key Management ---
-        # Get saved API key if exists
-        settings = QgsSettings()
+        settings = QSettings()
         saved_api_key = settings.value(f"{self.SETTINGS_GROUP}/{self.SETTINGS_API_KEY}", "")
         
-        # Show a hint about current saved API key status
         if saved_api_key:
             api_key_hint = f"Current saved key: {saved_api_key[:8]}...{saved_api_key[-4:]} (masked for security)"
         else:
@@ -136,19 +145,18 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterString(
                 self.API_KEY,
-                self.tr(f"RapidAPI Key ({api_key_hint})"),
+                self.tr("RapidAPI Key ({})".format(api_key_hint)),
                 defaultValue=saved_api_key,
                 optional=False,
                 multiLine=False
             )
         )
         
-        # Add parameter to save API key
         self.addParameter(
             QgsProcessingParameterBoolean(
                 self.SAVE_API_KEY,
                 self.tr("Save API key for future sessions (uncheck to remove saved key)"),
-                defaultValue=bool(saved_api_key)  # Default to True if key already saved
+                defaultValue=bool(saved_api_key)
             )
         )
 
@@ -172,15 +180,13 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
         """
         Validate parameters before processing.
         """
-        # Check API key
         api_key = self.parameterAsString(parameters, self.API_KEY, context)
         if not api_key or not api_key.strip():
             raise QgsProcessingException(
                 self.tr("RapidAPI Key is required. Please enter your API key or visit "
-                       "https://rapidapi.com/ageratlas/api/ageratlas to get one.")
+                       "https://rapidapi.com/zornade/api/zornade to get one.")
             )
 
-        # Check bounding box
         bbox = self.parameterAsExtent(parameters, self.BBOX, context)
         if bbox.isNull() or bbox.isEmpty():
             raise QgsProcessingException(self.tr("Bounding Box is required."))
@@ -200,10 +206,10 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
         api_key = self.parameterAsString(parameters, self.API_KEY, context).strip()
         save_api_key = self.parameterAsBool(parameters, self.SAVE_API_KEY, context)
         
-        settings = QgsSettings()
+        # Handle API key saving/updating/removing
+        settings = QSettings()
         current_saved = settings.value(f"{self.SETTINGS_GROUP}/{self.SETTINGS_API_KEY}", "")
         
-        # Handle API key saving/updating/removing
         if save_api_key:
             if current_saved != api_key:
                 settings.setValue(f"{self.SETTINGS_GROUP}/{self.SETTINGS_API_KEY}", api_key)
@@ -214,47 +220,38 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
             else:
                 feedback.pushInfo(self.tr("Using saved API key."))
         else:
-            # User unchecked save option - remove saved key
             if current_saved:
                 settings.remove(f"{self.SETTINGS_GROUP}/{self.SETTINGS_API_KEY}")
                 feedback.pushInfo(self.tr("Saved API key removed. Current key will only be used for this session."))
 
-        if not api_key:
-            feedback.reportError(self.tr("API Key is required. Please enter your RapidAPI key."), fatalError=True)
-            return {}
-
         bbox_extent = self.parameterAsExtent(parameters, self.BBOX, context)
         
-        # Handle coordinate transformation if needed
-        from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform
+        # Handle coordinate transformation
         source_crs = bbox_extent.crs() if bbox_extent.crs().isValid() else QgsProject.instance().crs()
         target_crs = QgsCoordinateReferenceSystem("EPSG:4326")
         
         if source_crs != target_crs:
             transform = QgsCoordinateTransform(source_crs, target_crs, QgsProject.instance())
             bbox_extent_4326 = transform.transformBoundingBox(bbox_extent)
-            feedback.pushInfo(self.tr(f"Transformed bounding box from {source_crs.authid()} to EPSG:4326"))
+            feedback.pushInfo(self.tr("Transformed bounding box from {} to EPSG:4326".format(source_crs.authid())))
         else:
             bbox_extent_4326 = bbox_extent
 
-        # Define output fields
-        # These should match the fields returned by the 'get-parcel-info' endpoint
-        # Example fields - adjust based on actual API response
+        # Define output fields based on expected API response
         fields = QgsFields()
-        fields.append(QgsField("parcel_id", 2)) # String for ID
-        fields.append(QgsField("area", 6)) # Double for area
-        fields.append(QgsField("municipality", 2)) # String
-        fields.append(QgsField("sheet", 2)) # String
-        fields.append(QgsField("parcel_num", 2)) # String
-        # Add other relevant fields from the API response
+        fields.append(QgsField("parcel_id", 2))  # String (QVariant::String = 2)
+        fields.append(QgsField("area", 6))  # Double (QVariant::Double = 6)
+        fields.append(QgsField("municipality", 2))  # String
+        fields.append(QgsField("sheet", 2))  # String
+        fields.append(QgsField("parcel_num", 2))  # String
 
         (sink, dest_id) = self.parameterAsSink(
             parameters,
             self.OUTPUT_PARCELS,
             context,
             fields,
-            QgsWkbTypes.Polygon, # Assuming parcels are polygons
-            QgsProject.instance().crs() # Output in project CRS
+            QgsWkbTypes.Polygon,
+            QgsProject.instance().crs()
         )
 
         if sink is None:
@@ -262,109 +259,69 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
                 self.invalidSinkError(parameters, self.OUTPUT_PARCELS)
             )
 
+        # Prepare API headers
         headers = {
             "X-RapidAPI-Key": api_key,
-            "X-RapidAPI-Host": "ageratlas.p.rapidapi.com"
+            "X-RapidAPI-Host": "zornade.p.rapidapi.com"
         }
 
-        parcels_data = []
+        # Convert bbox to API format
+        bbox_str = "{},{},{},{}".format(
+            bbox_extent_4326.xMinimum(),
+            bbox_extent_4326.yMinimum(),
+            bbox_extent_4326.xMaximum(),
+            bbox_extent_4326.yMaximum()
+        )
+        feedback.pushInfo(self.tr("Fetching parcels for BBOX: {}".format(bbox_str)))
 
-        # Fetch parcel data using bounding box
-        feedback.pushInfo(self.tr(f"Fetching parcels for BBOX: {bbox_extent_4326.toString()}"))
-        
-        # Convert bbox to string format expected by API
-        bbox_str = f"{bbox_extent_4326.xMinimum()},{bbox_extent_4326.yMinimum()},{bbox_extent_4326.xMaximum()},{bbox_extent_4326.yMaximum()}"
-        
-        # TODO: Implement API call for get-parcels by BBOX
-        # get_parcels_url = f"{self.API_BASE_URL}/get-parcels"
-        # params = {"bbox": bbox_str, "input_epsg": 4326, "output_epsg": 4326}
-        # response = requests.get(get_parcels_url, headers=headers, params=params)
-        # if response.status_code == 200:
-        #     parcels_geojson = response.json()
-        #     # Process parcels_geojson
-        # else:
-        #     feedback.reportError(f"Error fetching parcels: {response.status_code} - {response.text}", fatalError=True)
-        #     return {}
-        
-        feedback.pushInfo("API call for 'get-parcels' by BBOX not yet implemented.")
-        feedback.pushInfo(f"Would query API with bbox: {bbox_str}")
-
-        # Placeholder data for development
-        parcels_data = [
-            {"id": "1", "geometry": {"type": "Polygon", "coordinates": [[[0,0],[0,1],[1,1],[1,0],[0,0]]]}},
-            {"id": "2", "geometry": {"type": "Polygon", "coordinates": [[[1,1],[1,2],[2,2],[2,1],[1,1]]]}}
-        ]
-
-        # Step 2: For each parcel ID, fetch detailed info (get-parcel-info endpoint)
-        # This might be inefficient if get-parcels already returns all info.
-        # Adjust logic based on what get-parcels returns.
-        # If get-parcels returns full info including geometry, this step might be combined or skipped.
-
-        total_parcels = len(parcels_data)
-        feedback.setProgress(0)
-
-        for i, parcel_geom_data in enumerate(parcels_data):
-            if feedback.isCanceled():
-                break
-
-            parcel_id = parcel_geom_data.get("id") # Or however the ID is structured
-            # Assuming parcel_geom_data contains GeoJSON-like geometry
-            # geojson_geometry = parcel_geom_data.get("geometry")
-
-            # feedback.pushInfo(self.tr(f"Fetching details for parcel ID: {parcel_id}"))
-            # TODO: Implement API call for get-parcel-info
-            # get_info_url = f"{self.API_BASE_URL}/get-parcel-info"
-            # params_info = {"id": parcel_id} # Or however the ID is passed
-            # response_info = requests.get(get_info_url, headers=headers, params=params_info)
-            # parcel_attributes = {}
-            # if response_info.status_code == 200:
-            #     parcel_attributes = response_info.json() # Assuming JSON response with attributes
+        try:
+            # TODO: Replace with actual API call
+            # get_parcels_url = f"{self.API_BASE_URL}/get-parcels"
+            # params = {"bbox": bbox_str, "input_epsg": 4326, "output_epsg": 4326}
+            # response = requests.get(get_parcels_url, headers=headers, params=params, timeout=30)
+            # 
+            # if response.status_code == 200:
+            #     parcels_data = response.json()
+            #     self._process_parcels_data(parcels_data, sink, fields, feedback)
             # else:
-            #     feedback.reportError(f"Error fetching info for parcel {parcel_id}: {response_info.status_code} - {response_info.text}")
-            #     continue # Skip this parcel or handle error differently
-
-            # Create QGIS Feature
+            #     raise QgsProcessingException("API Error: {} - {}".format(response.status_code, response.text))
+            
+            # Placeholder for development
+            feedback.pushInfo("API call implementation pending. Plugin structure is ready.")
+            
+            # Create a dummy feature to test the plugin
             feat = QgsFeature(fields)
-
-            # Set geometry
-            # if geojson_geometry:
-            #     qgis_geometry = QgsGeometry.fromGeoJson(str(geojson_geometry)) # Ensure geojson_geometry is a valid JSON string
-            #     # Transform geometry if it's in EPSG:4326 and output CRS is different
-            #     source_crs = QgsCoordinateReferenceSystem("EPSG:4326")
-            #     dest_crs = sink.crs()
-            #     if source_crs != dest_crs:
-            #         transform = QgsCoordinateTransform(source_crs, dest_crs, QgsProject.instance())
-            #         qgis_geometry.transform(transform)
-            #     feat.setGeometry(qgis_geometry)
-
-            # Set attributes (example, adapt to actual API response)
-            # feat["parcel_id"] = parcel_id
-            # feat["area"] = parcel_attributes.get("area_sqm")
-            # feat["municipality"] = parcel_attributes.get("municipality_name")
-            # feat["sheet"] = parcel_attributes.get("sheet_number")
-            # feat["parcel_num"] = parcel_attributes.get("parcel_identifier")
-            # ... set other attributes
-
-            # Placeholder attributes if API call is not implemented
-            feat["parcel_id"] = parcel_id
-            feat["municipality"] = "N/A from BBOX"
-
-            # Add feature to sink
+            feat["parcel_id"] = "TEST_001"
+            feat["area"] = 1000.0
+            feat["municipality"] = "Test Municipality"
+            feat["sheet"] = "001"
+            feat["parcel_num"] = "123"
+            
+            # Create a simple test geometry
+            test_rect = QgsRectangle(
+                bbox_extent_4326.xMinimum(), 
+                bbox_extent_4326.yMinimum(), 
+                bbox_extent_4326.xMinimum() + 0.001, 
+                bbox_extent_4326.yMinimum() + 0.001
+            )
+            feat.setGeometry(QgsGeometry.fromRect(test_rect))
+            
             sink.addFeature(feat, QgsFeatureSink.Flag.FastInsert)
-            feedback.setProgress(int((i + 1) / total_parcels * 100))
-
-
-        if feedback.isCanceled():
+            feedback.pushInfo("Added test feature to verify plugin functionality.")
+            
+        except Exception as e:
+            feedback.reportError(self.tr("Error fetching data: {}".format(str(e))), fatalError=True)
             return {}
 
         return {self.OUTPUT_PARCELS: dest_id}
+
+    def _process_parcels_data(self, parcels_data, sink, fields, feedback):
+        """Process API response and add features to sink."""
+        # Implementation will depend on actual API response format
+        pass
 
     def postProcessAlgorithm(self, context: QgsProcessingContext, feedback: QgsProcessingFeedback) -> dict[str, Any]:
         """
         Actions to be performed after the algorithm has finished.
         """
-        # Example: Add the output layer to the map
-        # output_layer_id = self.parameterAsOutputLayer(parameters, self.OUTPUT_PARCELS, context)
-        # if output_layer_id:
-        #    QgsProject.instance().addMapLayer(QgsProcessingUtils.mapLayerFromString(output_layer_id, context))
         return super().postProcessAlgorithm(context, feedback)
