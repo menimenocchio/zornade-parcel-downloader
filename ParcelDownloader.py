@@ -29,6 +29,7 @@ import concurrent.futures
 import threading
 
 from qgis.PyQt.QtCore import QCoreApplication, QSettings
+from qgis.PyQt.QtGui import QColor
 from qgis.core import (
     QgsFeatureSink,
     QgsProcessing,
@@ -51,7 +52,21 @@ from qgis.core import (
     QgsProject,
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
-    QgsRectangle
+    QgsRectangle,
+    QgsVectorLayer,
+    QgsSymbol,
+    QgsRendererCategory,
+    QgsCategorizedSymbolRenderer,
+    QgsFillSymbol,
+    QgsLineSymbol,
+    QgsMarkerSymbol,
+    QgsSimpleFillSymbolLayer,
+    QgsSimpleLineSymbolLayer,
+    QgsPalLayerSettings,
+    QgsTextFormat,
+    QgsTextBufferSettings,
+    QgsVectorLayerSimpleLabeling,
+    QgsMapLayer
 )
 import requests # Required for API calls
 
@@ -686,12 +701,216 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
             feedback.reportError(self.tr("Unexpected error: {}. Please report this issue.".format(str(e))), fatalError=True)
             return {}
 
-        return {self.OUTPUT_PARCELS: dest_id}
+        # Store the result for styling
+        result = {self.OUTPUT_PARCELS: dest_id}
+        
+        # Apply styling and labels if we processed any parcels
+        if processed_count > 0:
+            try:
+                self._apply_beautiful_styling(dest_id, context, feedback)
+            except Exception as e:
+                feedback.pushWarning(self.tr("Could not apply styling: {}".format(str(e))))
 
-    def _process_parcels_data(self, parcels_data, sink, fields, feedback):
-        """Process API response and add features to sink."""
-        # Implementation will depend on actual API response format
-        pass
+        return result
+
+    def _apply_beautiful_styling(self, layer_id: str, context: QgsProcessingContext, feedback: QgsProcessingFeedback):
+        """Apply beautiful symbology and labels to the parcel layer."""
+        
+        # Get the layer from the context
+        layer = context.getMapLayer(layer_id)
+        if not layer or not isinstance(layer, QgsVectorLayer):
+            feedback.pushWarning(self.tr("Could not access layer for styling"))
+            return
+        
+        feedback.pushInfo(self.tr("Applying beautiful symbology and labels..."))
+        
+        # Create land use based categorized renderer
+        self._create_land_use_renderer(layer, feedback)
+        
+        # Apply labels
+        self._apply_parcel_labels(layer, feedback)
+        
+        # Set layer properties
+        layer.setOpacity(0.8)  # Slight transparency
+        
+        feedback.pushInfo(self.tr("Styling applied successfully!"))
+
+    def _create_land_use_renderer(self, layer: QgsVectorLayer, feedback: QgsProcessingFeedback):
+        """Create a categorized renderer based on land use classification."""
+        
+        # Define color scheme for different land use types
+        land_use_colors = {
+            # Residential
+            'residential': QColor(255, 230, 153),  # Light yellow
+            'housing': QColor(255, 204, 128),      # Light orange
+            'urban': QColor(255, 179, 102),        # Orange
+            
+            # Commercial/Industrial
+            'commercial': QColor(204, 153, 255),   # Light purple
+            'industrial': QColor(153, 102, 204),   # Purple
+            'business': QColor(128, 77, 179),      # Dark purple
+            
+            # Agricultural
+            'agricultural': QColor(153, 255, 153), # Light green
+            'farmland': QColor(102, 204, 102),     # Green
+            'crops': QColor(76, 153, 76),          # Dark green
+            
+            # Natural/Forest
+            'forest': QColor(0, 128, 0),           # Dark green
+            'woodland': QColor(34, 139, 34),       # Forest green
+            'natural': QColor(107, 142, 35),       # Olive
+            
+            # Water
+            'water': QColor(173, 216, 230),        # Light blue
+            'wetland': QColor(135, 206, 235),      # Sky blue
+            
+            # Infrastructure
+            'transport': QColor(128, 128, 128),    # Gray
+            'infrastructure': QColor(105, 105, 105), # Dim gray
+            'utilities': QColor(169, 169, 169),    # Dark gray
+            
+            # Special/Other
+            'recreational': QColor(255, 182, 193), # Light pink
+            'public': QColor(255, 160, 122),       # Light salmon
+            'cemetery': QColor(139, 69, 19),       # Saddle brown
+            'unknown': QColor(211, 211, 211),      # Light gray
+            'other': QColor(192, 192, 192)         # Silver
+        }
+        
+        # Risk assessment overlay colors (for stroke)
+        risk_stroke_colors = {
+            'high': QColor(255, 0, 0),      # Red
+            'medium': QColor(255, 165, 0),  # Orange  
+            'low': QColor(0, 255, 0),       # Green
+            'none': QColor(128, 128, 128),  # Gray
+            'unknown': QColor(64, 64, 64)   # Dark gray
+        }
+        
+        categories = []
+        
+        # Get unique land use values from the layer
+        unique_classes = set()
+        for feature in layer.getFeatures():
+            land_class = str(feature['class']).lower().strip()
+            if land_class:
+                unique_classes.add(land_class)
+        
+        feedback.pushInfo(self.tr("Found {} unique land use classes".format(len(unique_classes))))
+        
+        # Create categories for each land use type
+        for land_class in sorted(unique_classes):
+            if not land_class or land_class == 'null':
+                continue
+                
+            # Determine color based on land use keywords
+            fill_color = land_use_colors.get('other')  # Default
+            
+            # Match land use to color scheme
+            for keyword, color in land_use_colors.items():
+                if keyword in land_class:
+                    fill_color = color
+                    break
+            
+            # Create symbol with semi-transparent fill and contrasting stroke
+            symbol = QgsFillSymbol.createSimple({
+                'color': fill_color.name(),
+                'color_border': QColor(64, 64, 64).name(),  # Dark gray border
+                'style': 'solid',
+                'style_border': 'solid',
+                'width_border': '0.3',
+                'opacity': '0.7'
+            })
+            
+            # Create category
+            category = QgsRendererCategory(
+                land_class,
+                symbol,
+                self._format_class_label(land_class)
+            )
+            categories.append(category)
+        
+        # Create "No Data" category
+        no_data_symbol = QgsFillSymbol.createSimple({
+            'color': QColor(211, 211, 211).name(),  # Light gray
+            'color_border': QColor(128, 128, 128).name(),
+            'style': 'dense6',  # Hatched pattern
+            'style_border': 'solid',
+            'width_border': '0.2',
+            'opacity': '0.5'
+        })
+        
+        no_data_category = QgsRendererCategory(
+            '',  # Empty value
+            no_data_symbol,
+            'No Classification Data'
+        )
+        categories.append(no_data_category)
+        
+        # Create and apply the renderer
+        renderer = QgsCategorizedSymbolRenderer('class', categories)
+        layer.setRenderer(renderer)
+        
+        feedback.pushInfo(self.tr("Applied categorized symbology with {} categories".format(len(categories))))
+
+    def _format_class_label(self, class_name: str) -> str:
+        """Format class name for display in legend."""
+        # Capitalize first letter of each word and replace underscores
+        formatted = class_name.replace('_', ' ').title()
+        return formatted
+
+    def _apply_parcel_labels(self, layer: QgsVectorLayer, feedback: QgsProcessingFeedback):
+        """Apply informative labels to parcels."""
+        
+        # Create label settings
+        label_settings = QgsPalLayerSettings()
+        
+        # Set label expression - show FID and land use class
+        label_settings.fieldName = '''
+        CASE 
+            WHEN "class" IS NOT NULL AND "class" != '' THEN
+                "fid" || '\n' || "class"
+            ELSE
+                "fid"
+        END
+        '''
+        label_settings.isExpression = True
+        
+        # Text formatting
+        text_format = QgsTextFormat()
+        text_format.setFont(layer.labelsFont())
+        text_format.setSize(8)
+        text_format.setColor(QColor(0, 0, 0))  # Black text
+        
+        # Add text buffer (halo effect)
+        buffer_settings = QgsTextBufferSettings()
+        buffer_settings.setEnabled(True)
+        buffer_settings.setSize(1)
+        buffer_settings.setColor(QColor(255, 255, 255, 200))  # Semi-transparent white
+        text_format.setBuffer(buffer_settings)
+        
+        label_settings.setFormat(text_format)
+        
+        # Label placement
+        label_settings.placement = QgsPalLayerSettings.AroundPoint
+        label_settings.centroidWhole = True
+        label_settings.centroidInside = True
+        
+        # Only show labels at certain scale ranges (avoid clutter)
+        label_settings.scaleVisibility = True
+        label_settings.minimumScale = 500    # Show when zoomed in closer than 1:500
+        label_settings.maximumScale = 50000  # Hide when zoomed out beyond 1:50,000
+        
+        # Priority and obstacles
+        label_settings.priority = 5
+        label_settings.obstacle = True
+        label_settings.obstacleFactor = 0.5
+        
+        # Apply labeling
+        labeling = QgsVectorLayerSimpleLabeling(label_settings)
+        layer.setLabeling(labeling)
+        layer.setLabelsEnabled(True)
+        
+        feedback.pushInfo(self.tr("Applied intelligent parcel labels (visible at scales 1:500 to 1:50,000)"))
 
     def postProcessAlgorithm(self, context: QgsProcessingContext, feedback: QgsProcessingFeedback) -> dict[str, Any]:
         """
