@@ -3,7 +3,7 @@ name=Zornade Italian Parcel Downloader
 qgisMinimumVersion=3.16
 qgisMaximumVersion=3.99
 description=Download enriched Italian cadastral parcel data with 57 comprehensive attributes from Zornade's dataset via RapidAPI
-version=1.2.0
+version=1.5.0
 author=Zornade
 email=e.pascatti@gmail.com
 
