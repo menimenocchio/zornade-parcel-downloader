@@ -2,12 +2,12 @@
 name=Zornade Italian Parcel Downloader
 qgisMinimumVersion=3.16
 qgisMaximumVersion=3.99
-description=Download enriched Italian cadastral parcel data from Zornade's comprehensive dataset via RapidAPI
-version=1.0.0
+description=Download enriched Italian cadastral parcel data with 57 comprehensive attributes from Zornade's dataset via RapidAPI
+version=1.2.0
 author=Zornade
 email=e.pascatti@gmail.com
 
-about=Professional QGIS plugin for downloading enriched Italian cadastral parcel data from Zornade's comprehensive dataset via RapidAPI. Access detailed cadastral information including accurate geometries, administrative data, risk assessments (flood, landslide, seismic), land cover classification, demographic statistics, and elevation data. Features include: intelligent batch processing with adaptive sizing, robust error handling and recovery, secure credential management, automatic coordinate transformation, comprehensive progress reporting, and seamless QGIS Processing Framework integration. Designed for professionals in real estate, urban planning, environmental analysis, and GIS applications requiring accurate Italian cadastral data.
+about=Professional QGIS plugin providing access to Zornade's enriched Italian cadastral dataset with 57 comprehensive attributes via RapidAPI. Features complete parcel information including: accurate geometries (Polygon/MultiPolygon), administrative data (municipality, region, province), physical characteristics (elevation, area, ruggedness), detailed land use classification, comprehensive demographics (population, age, family structure), housing and employment statistics, education and social indicators, economic development indices (real estate potential, economic resilience, redevelopment opportunities), multi-hazard risk assessments (flood, landslide, coastal erosion, seismic), and precise address information. Advanced capabilities include intelligent batch processing with adaptive sizing (10-25 parcels per batch), robust error handling and recovery, secure credential management with encryption, automatic coordinate transformation, comprehensive progress reporting, beautiful automatic styling and labeling, and seamless QGIS Processing Framework integration. Designed for professionals in real estate analysis, urban planning, environmental assessment, risk management, demographic studies, and comprehensive GIS applications requiring detailed Italian cadastral data.
 
 tracker=https://github.com/menimenocchio/zornade-parcel-downloader/issues
 repository=https://github.com/menimenocchio/zornade-parcel-downloader
@@ -15,20 +15,24 @@ homepage=https://zornade.com
 
 # Recommended items:
 hasProcessingProvider=yes
-changelog=1.0.0 - Production release
-    - Professional-grade error handling and recovery
-    - Adaptive batch processing (10-25 parcels per batch based on dataset size)
-    - Intelligent rate limiting and API respect
-    - Comprehensive progress reporting and user feedback
-    - Robust geometry processing supporting Polygon and MultiPolygon formats
-    - Safe data type conversion and validation
-    - Secure credential storage with encryption
-    - Performance optimization for large datasets
-    - User-friendly error messages and troubleshooting guidance
-    - Production-ready stability and reliability improvements
+changelog=1.0.0 - Production release with comprehensive dataset
+    - 57 enriched attributes including demographics, economics, and risk assessments
+    - Beautiful automatic styling and labeling based on land use classification
+    - Professional-grade error handling and recovery mechanisms
+    - Adaptive batch processing (10-25 parcels per batch) optimized for dataset size
+    - Intelligent rate limiting and respectful API usage patterns
+    - Comprehensive progress reporting with detailed user feedback
+    - Robust geometry processing supporting complex Polygon and MultiPolygon formats
+    - Safe data type conversion and validation for all numeric and text fields
+    - Secure credential storage with encryption and optional persistence
+    - Performance optimization for large datasets (1000+ parcels)
+    - Enhanced user experience with informative error messages and troubleshooting guidance
+    - Multi-criteria analysis support for risk assessment, economic evaluation, and social indicators
+    - Advanced styling capabilities with categorized symbology and scale-dependent labeling
+    - Production-ready stability and reliability for professional workflows
 
 # Tags are comma separated with spaces allowed
-tags=italy,cadastral,parcel,property,api,rapidapi,zornade,processing,data,download,geometry,real estate,land use,risk assessment,professional,gis
+tags=italy,cadastral,parcel,property,api,rapidapi,zornade,processing,data,download,geometry,real estate,land use,risk assessment,demographics,economics,professional,gis,analysis,urban planning,environmental,flood risk,landslide,seismic,population,employment,education,social indicators,development indices
 
 category=Web
 icon=icon.png
@@ -46,3 +50,6 @@ external_deps=requests
 
 # Plugin classification
 plugin_type=professional
+
+# Data fields count
+data_fields=57

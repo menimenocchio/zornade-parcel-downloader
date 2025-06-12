@@ -20,6 +20,7 @@ def create_plugin_zip():
         "zornade_parcel_downloader.py", 
         "parcel_downloader_provider.py",
         "ParcelDownloader.py",
+        "rapidapi_auth.py",
         "metadata.txt",
         "README.md"
     ]

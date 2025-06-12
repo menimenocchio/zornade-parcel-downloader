@@ -69,6 +69,7 @@ from qgis.core import (
     QgsMapLayer
 )
 import requests # Required for API calls
+from .rapidapi_auth import RapidAPIAuthenticator, SmartAuthDialog
 
 
 class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
@@ -83,6 +84,7 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
     API_KEY = "API_KEY"
     AUTH_TOKEN = "AUTH_TOKEN"
     SAVE_API_KEY = "SAVE_API_KEY"
+    AUTO_AUTH = "AUTO_AUTH"
 
     # Output parameters
     OUTPUT_PARCELS = "OUTPUT_PARCELS"
@@ -163,37 +165,56 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
         """
         Defines the inputs and outputs of the algorithm.
         """
+        # --- Smart Authentication Option ---
+        self.addParameter(
+            QgsProcessingParameterBoolean(
+                self.AUTO_AUTH,
+                self.tr("🔧 Use Smart Authentication (Automatic credential retrieval from RapidAPI)"),
+                defaultValue=True
+            )
+        )
+        
         # --- API Key Management ---
         settings = QSettings()
         saved_api_key = settings.value(f"{self.SETTINGS_GROUP}/{self.SETTINGS_API_KEY}", "")
         saved_auth_token = settings.value(f"{self.SETTINGS_GROUP}/{self.SETTINGS_AUTH_TOKEN}", "")
         
-        if saved_api_key:
-            api_key_hint = f"Current saved key: {saved_api_key[:8]}...{saved_api_key[-4:]} (masked for security)"
+        # Check for automatically retrieved credentials
+        authenticator = RapidAPIAuthenticator()
+        auto_credentials = authenticator.get_saved_credentials()
+        
+        if auto_credentials and auto_credentials.get('auto_retrieved'):
+            api_key_hint = f"✓ Smart Auth: {auto_credentials['rapidapi_key'][:8]}...{auto_credentials['rapidapi_key'][-4:]} ({auto_credentials.get('subscription_plan', 'Unknown Plan')})"
+            auth_token_hint = f"✓ Smart Auth: Auto-retrieved bearer token"
+            saved_api_key = auto_credentials['rapidapi_key']
+            saved_auth_token = auto_credentials['bearer_token']
         else:
-            api_key_hint = "No API key currently saved"
+            if saved_api_key:
+                api_key_hint = f"Manual: {saved_api_key[:8]}...{saved_api_key[-4:]} (masked for security)"
+            else:
+                api_key_hint = "No API key currently saved - Smart Auth recommended"
+            
+            if saved_auth_token:
+                auth_token_hint = f"Manual: {saved_auth_token[:20]}... (masked for security)"
+            else:
+                auth_token_hint = "No auth token currently saved - Smart Auth recommended"
         
         self.addParameter(
             QgsProcessingParameterString(
                 self.API_KEY,
                 self.tr("RapidAPI Key ({})".format(api_key_hint)),
                 defaultValue=saved_api_key,
-                optional=False,
+                optional=True,  # Optional when using smart auth
                 multiLine=False
             )
         )
-        
-        if saved_auth_token:
-            auth_token_hint = f"Current saved token: {saved_auth_token[:20]}... (masked for security)"
-        else:
-            auth_token_hint = "No auth token currently saved"
         
         self.addParameter(
             QgsProcessingParameterString(
                 self.AUTH_TOKEN,
                 self.tr("Authorization Bearer Token - enter token only, no 'Bearer ' prefix ({})".format(auth_token_hint)),
                 defaultValue=saved_auth_token,
-                optional=False,
+                optional=True,  # Optional when using smart auth
                 multiLine=False
             )
         )
@@ -226,18 +247,49 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
         """
         Validate parameters before processing.
         """
-        api_key = self.parameterAsString(parameters, self.API_KEY, context)
-        if not api_key or not api_key.strip():
-            raise QgsProcessingException(
-                self.tr("RapidAPI Key is required. Please enter your API key or visit "
-                       "https://rapidapi.com/abigdatacompany-abigdatacompany-default/api/enriched-cadastral-parcels-for-italy to get one.")
-            )
+        use_auto_auth = self.parameterAsBool(parameters, self.AUTO_AUTH, context)
+        
+        if use_auto_auth:
+            # Check if smart authentication can provide credentials
+            try:
+                from .rapidapi_auth import RapidAPIAuthenticator
+                authenticator = RapidAPIAuthenticator()
+                auto_credentials = authenticator.get_saved_credentials()
+                
+                if not auto_credentials:
+                    # Instead of showing dialog, give clear instructions
+                    raise QgsProcessingException(
+                        self.tr("Smart Authentication enabled but no saved credentials found.\n\n"
+                               "To set up Smart Authentication:\n"
+                               "1. Disable 'Use Smart Authentication'\n"
+                               "2. Enter your RapidAPI credentials manually\n"
+                               "3. Check 'Save credentials for future sessions'\n"
+                               "4. Run the algorithm once\n"
+                               "5. Re-enable Smart Authentication for future use\n\n"
+                               "Alternatively, disable Smart Authentication and enter credentials manually below.")
+                    )
+                setattr(self, '_needs_auth_setup', False)
+            except ImportError:
+                raise QgsProcessingException(
+                    self.tr("Smart Authentication is not available. Please disable it and enter credentials manually.")
+                )
+        else:
+            # Validate manual credentials
+            api_key = self.parameterAsString(parameters, self.API_KEY, context)
+            if not api_key or not api_key.strip():
+                raise QgsProcessingException(
+                    self.tr("RapidAPI Key is required when Smart Authentication is disabled. "
+                           "Please enter your API key.")
+                )
 
-        auth_token = self.parameterAsString(parameters, self.AUTH_TOKEN, context)
-        if not auth_token or not auth_token.strip():
-            raise QgsProcessingException(
-                self.tr("Authorization Bearer Token is required. Please check the API documentation for how to obtain this token.")
-            )
+            auth_token = self.parameterAsString(parameters, self.AUTH_TOKEN, context)
+            if not auth_token or not auth_token.strip():
+                raise QgsProcessingException(
+                    self.tr("Authorization Bearer Token is required when Smart Authentication is disabled. "
+                           "Please enter your token.")
+                )
+            
+            setattr(self, '_needs_auth_setup', False)
 
         bbox = self.parameterAsExtent(parameters, self.BBOX, context)
         if bbox.isNull() or bbox.isEmpty():
@@ -254,36 +306,113 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
         """
         Main processing logic.
         """
-        # Get credentials from parameters
-        api_key = self.parameterAsString(parameters, self.API_KEY, context).strip()
-        auth_token = self.parameterAsString(parameters, self.AUTH_TOKEN, context).strip()
+        # Handle Smart Authentication vs Manual Authentication
+        use_auto_auth = self.parameterAsBool(parameters, self.AUTO_AUTH, context)
         
+        if use_auto_auth:
+            # Use Smart Authentication (simplified and stable)
+            feedback.pushInfo(self.tr("🔧 Using Smart Authentication..."))
+            try:
+                authenticator = RapidAPIAuthenticator()
+                auto_credentials = authenticator.get_saved_credentials()
+                
+                if auto_credentials:
+                    api_key = auto_credentials['rapidapi_key']
+                    auth_token = auto_credentials['bearer_token']
+                    feedback.pushInfo(self.tr("✅ Using saved Smart Authentication credentials"))
+                    
+                    if auto_credentials.get('subscription_plan'):
+                        feedback.pushInfo(self.tr("📋 Subscription: {}".format(auto_credentials['subscription_plan'])))
+                        
+                    # Quick validation check
+                    if not auto_credentials.get('is_working', True):
+                        feedback.pushWarning(self.tr("⚠️ Previously detected issues with saved credentials. Consider updating them."))
+                else:
+                    # Show simple credential dialog
+                    feedback.pushInfo(self.tr("⚙️ Opening credential setup dialog..."))
+                    
+                    try:
+                        from qgis.PyQt.QtWidgets import QDialog
+                        auth_dialog = SmartAuthDialog()
+                        
+                        if auth_dialog.exec_() == QDialog.Accepted:
+                            credentials = auth_dialog.get_credentials()
+                            if credentials:
+                                api_key = credentials['rapidapi_key']
+                                auth_token = credentials['bearer_token']
+                                feedback.pushInfo(self.tr("🎉 Smart Authentication setup complete!"))
+                                
+                                if credentials.get('subscription_plan'):
+                                    feedback.pushInfo(self.tr("📋 Subscription: {}".format(credentials['subscription_plan'])))
+                            else:
+                                raise QgsProcessingException(
+                                    self.tr("❌ Smart Authentication setup failed. Please try manual authentication.")
+                                )
+                        else:
+                            raise QgsProcessingException(
+                                self.tr("❌ Smart Authentication was cancelled. Please disable Smart Authentication for manual entry.")
+                            )
+                            
+                    except Exception as e:
+                        feedback.reportError(self.tr("Smart Authentication error: {}".format(str(e))))
+                        raise QgsProcessingException(
+                            self.tr("Smart Authentication failed. Please disable Smart Authentication and enter credentials manually.")
+                        )
+                        
+            except ImportError:
+                raise QgsProcessingException(
+                    self.tr("Smart Authentication module not available. Please use manual authentication.")
+                )
+        else:
+            # Use Manual Authentication (unchanged)
+            api_key = self.parameterAsString(parameters, self.API_KEY, context).strip()
+            auth_token = self.parameterAsString(parameters, self.AUTH_TOKEN, context).strip()
+            feedback.pushInfo(self.tr("🔑 Using manual authentication credentials"))
+            
+            # Handle credential saving for manual authentication
+            save_api_key = self.parameterAsBool(parameters, self.SAVE_API_KEY, context)
+            
+            if save_api_key:
+                try:
+                    from .rapidapi_auth import RapidAPIAuthenticator
+                    authenticator = RapidAPIAuthenticator()
+                    credentials = {
+                        'rapidapi_key': api_key,
+                        'bearer_token': auth_token,
+                        'subscription_plan': 'Manual Entry',
+                        'auto_retrieved': True
+                    }
+                    authenticator.save_credentials(credentials)
+                    feedback.pushInfo(self.tr("💾 Credentials saved for Smart Authentication"))
+                except Exception as e:
+                    feedback.pushWarning(self.tr("Could not save credentials: {}".format(str(e))))
+
         # Clean up auth token - remove "Bearer " prefix if user included it
         if auth_token.lower().startswith('bearer '):
             auth_token = auth_token[7:]  # Remove "Bearer " prefix
         
-        save_api_key = self.parameterAsBool(parameters, self.SAVE_API_KEY, context)
-        
-        # Handle credential saving/updating/removing
-        settings = QSettings()
-        current_saved_api = settings.value(f"{self.SETTINGS_GROUP}/{self.SETTINGS_API_KEY}", "")
-        current_saved_token = settings.value(f"{self.SETTINGS_GROUP}/{self.SETTINGS_AUTH_TOKEN}", "")
-        
-        if save_api_key:
-            if current_saved_api != api_key or current_saved_token != auth_token:
-                settings.setValue(f"{self.SETTINGS_GROUP}/{self.SETTINGS_API_KEY}", api_key)
-                settings.setValue(f"{self.SETTINGS_GROUP}/{self.SETTINGS_AUTH_TOKEN}", auth_token)
-                if current_saved_api and current_saved_token:
-                    feedback.pushInfo(self.tr("Credentials updated and saved for future sessions."))
+        # Handle credential saving for manual authentication
+        if not use_auto_auth:
+            save_api_key = self.parameterAsBool(parameters, self.SAVE_API_KEY, context)
+            
+            settings = QSettings()
+            current_saved_api = settings.value(f"{self.SETTINGS_GROUP}/{self.SETTINGS_API_KEY}", "")
+            current_saved_token = settings.value(f"{self.SETTINGS_GROUP}/{self.SETTINGS_AUTH_TOKEN}", "")
+            
+            if save_api_key:
+                if current_saved_api != api_key or current_saved_token != auth_token:
+                    settings.setValue(f"{self.SETTINGS_GROUP}/{self.SETTINGS_API_KEY}", api_key)
+                    settings.setValue(f"{self.SETTINGS_GROUP}/{self.SETTINGS_AUTH_TOKEN}", auth_token)
+                    settings.setValue(f"{self.SETTINGS_GROUP}/manual_override", True)
+                    feedback.pushInfo(self.tr("Manual credentials saved for future sessions."))
                 else:
-                    feedback.pushInfo(self.tr("Credentials saved for future sessions."))
+                    feedback.pushInfo(self.tr("Using saved manual credentials."))
             else:
-                feedback.pushInfo(self.tr("Using saved credentials."))
-        else:
-            if current_saved_api or current_saved_token:
-                settings.remove(f"{self.SETTINGS_GROUP}/{self.SETTINGS_API_KEY}")
-                settings.remove(f"{self.SETTINGS_GROUP}/{self.SETTINGS_AUTH_TOKEN}")
-                feedback.pushInfo(self.tr("Saved credentials removed. Current credentials will only be used for this session."))
+                if current_saved_api or current_saved_token:
+                    settings.remove(f"{self.SETTINGS_GROUP}/{self.SETTINGS_API_KEY}")
+                    settings.remove(f"{self.SETTINGS_GROUP}/{self.SETTINGS_AUTH_TOKEN}")
+                    settings.remove(f"{self.SETTINGS_GROUP}/manual_override")
+                    feedback.pushInfo(self.tr("Saved manual credentials removed."))
 
         bbox_extent = self.parameterAsExtent(parameters, self.BBOX, context)
         bbox_crs = self.parameterAsExtentCrs(parameters, self.BBOX, context)
@@ -307,27 +436,79 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
                 "Consider using a smaller area for better performance."
             ).format(bbox_area))
 
-        # Define output fields based on zornade API response
+        # Define output fields based on your complete requirements
         fields = QgsFields()
         from qgis.PyQt.QtCore import QVariant
         
+        # Core identification fields
         fields.append(QgsField("fid", QVariant.String))
         fields.append(QgsField("gml_id", QVariant.String))
+        fields.append(QgsField("label", QVariant.String))
+        
+        # Administrative and geographic data
         fields.append(QgsField("administrativeunit", QVariant.String))
-        fields.append(QgsField("comune_name", QVariant.String))
+        fields.append(QgsField("municipality_name", QVariant.String))
+        fields.append(QgsField("region_name", QVariant.String))
+        fields.append(QgsField("province_name", QVariant.String))
+        fields.append(QgsField("province_code", QVariant.String))
+        fields.append(QgsField("postal_code", QVariant.String))
+        
+        # Physical characteristics
         fields.append(QgsField("footprint_sqm", QVariant.Double))
         fields.append(QgsField("elevation_min", QVariant.Double))
         fields.append(QgsField("elevation_max", QVariant.Double))
+        fields.append(QgsField("ruggedness_index", QVariant.Double))
+        fields.append(QgsField("number_of_points", QVariant.Int))
+        
+        # Land use and classification
         fields.append(QgsField("class", QVariant.String))
         fields.append(QgsField("subtype", QVariant.String))
         fields.append(QgsField("landcover", QVariant.String))
-        fields.append(QgsField("densita_abitativa", QVariant.Double))
-        fields.append(QgsField("eta_media", QVariant.Double))
-        fields.append(QgsField("tasso_occupazione", QVariant.Double))
+        fields.append(QgsField("buildings_count", QVariant.Int))
+        
+        # Census and demographics
+        fields.append(QgsField("census_section_id", QVariant.String))
+        fields.append(QgsField("section_type_code", QVariant.String))
+        fields.append(QgsField("estimated_population", QVariant.Int))
+        fields.append(QgsField("average_age", QVariant.Double))
+        fields.append(QgsField("average_family_size", QVariant.Double))
+        fields.append(QgsField("masculinity_rate", QVariant.Double))
+        fields.append(QgsField("single_person_rate", QVariant.Double))
+        fields.append(QgsField("large_families_rate", QVariant.Double))
+        fields.append(QgsField("elderly_rate", QVariant.Double))
+        
+        # Housing and employment
+        fields.append(QgsField("housing_density", QVariant.Double))
+        fields.append(QgsField("average_building_occupancy", QVariant.Double))
+        fields.append(QgsField("employment_rate", QVariant.Double))
+        fields.append(QgsField("female_employment_rate", QVariant.Double))
+        fields.append(QgsField("employment_gender_gap", QVariant.Double))
+        
+        # Education and social indicators
+        fields.append(QgsField("higher_education_rate", QVariant.Double))
+        fields.append(QgsField("low_education_rate", QVariant.Double))
+        fields.append(QgsField("foreign_population_rate", QVariant.Double))
+        fields.append(QgsField("labor_integration_rate", QVariant.Double))
+        fields.append(QgsField("non_eu_foreigners_rate", QVariant.Double))
+        fields.append(QgsField("young_foreigners_rate", QVariant.Double))
+        
+        # Economic and development indices
+        fields.append(QgsField("structural_dependency_index", QVariant.Double))
+        fields.append(QgsField("population_turnover_index", QVariant.Double))
+        fields.append(QgsField("real_estate_potential_index", QVariant.Double))
+        fields.append(QgsField("redevelopment_opportunity_index", QVariant.Double))
+        fields.append(QgsField("economic_resilience_index", QVariant.Double))
+        fields.append(QgsField("social_cohesion_index", QVariant.Double))
+        
+        # Risk assessments
         fields.append(QgsField("flood_risk", QVariant.String))
         fields.append(QgsField("landslide_risk", QVariant.String))
+        fields.append(QgsField("coastalerosion_risk", QVariant.String))
         fields.append(QgsField("seismic_risk", QVariant.String))
-        fields.append(QgsField("buildings_count", QVariant.Int))
+        
+        # Address information
+        fields.append(QgsField("primary_street_address", QVariant.String))
+        fields.append(QgsField("address_numbers", QVariant.String))
 
         (sink, dest_id) = self.parameterAsSink(
             parameters,
@@ -456,8 +637,19 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
                 fid, batch_index, total_in_batch = fid_batch_info
                 
                 try:
+                    # Fix: Ensure proper JSON payload construction
                     info_payload = {"fid": str(fid)}
-                    info_response = requests.post(get_info_url, headers=headers, json=info_payload, timeout=20)
+                    
+                    # Debug: Log the payload format for first request
+                    if batch_index == 0:
+                        feedback.pushInfo(self.tr("Debug: Request payload format: {}".format(info_payload)))
+                    
+                    info_response = requests.post(
+                        get_info_url, 
+                        headers=headers, 
+                        json=info_payload,  # Use json parameter for proper serialization
+                        timeout=20
+                    )
                     
                     if info_response.status_code == 200:
                         try:
@@ -465,15 +657,27 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
                             if info_data.get("success") and "data" in info_data:
                                 return (fid, True, info_data["data"])
                             else:
-                                return (fid, False, f"Invalid response format")
-                        except ValueError:
-                            return (fid, False, f"Invalid JSON response")
+                                error_msg = info_data.get("message", "Invalid response format")
+                                return (fid, False, f"API Error: {error_msg}")
+                        except ValueError as e:
+                            return (fid, False, f"Invalid JSON response: {str(e)}")
                     elif info_response.status_code == 404:
                         return (fid, False, f"Parcel not found")
                     elif info_response.status_code == 429:
                         return (fid, False, f"Rate limited")
+                    elif info_response.status_code == 500:
+                        # Log more details for 500 errors
+                        try:
+                            error_details = info_response.text[:200]
+                            return (fid, False, f"Server error (500): {error_details}")
+                        except:
+                            return (fid, False, f"Server error (500): Unknown server issue")
                     else:
-                        return (fid, False, f"HTTP {info_response.status_code}")
+                        try:
+                            error_text = info_response.text[:200]
+                            return (fid, False, f"HTTP {info_response.status_code}: {error_text}")
+                        except:
+                            return (fid, False, f"HTTP {info_response.status_code}")
                         
                 except requests.exceptions.Timeout:
                     return (fid, False, f"Request timeout")
@@ -481,7 +685,7 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
                     return (fid, False, f"Connection error")
                 except Exception as e:
                     return (fid, False, f"Exception: {str(e)[:100]}")
-            
+
             # Process parcels in batches
             total_parcels = len(parcel_fids)
             
@@ -550,28 +754,74 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
                             # Create QGIS feature
                             feat = QgsFeature(fields)
                             
-                            # Set attributes with safe type conversion
+                            # Core identification
                             feat["fid"] = str(fid)
-                            feat["gml_id"] = str(parcel_info.get("gml_id", ""))
-                            feat["administrativeunit"] = str(parcel_info.get("administrativeunit", ""))
-                            feat["comune_name"] = str(parcel_info.get("comune_name", ""))
+                            feat["gml_id"] = str(parcel_info.get("gml_id", "")) 
+                            feat["label"] = str(parcel_info.get("label", ""))
                             
-                            # Safely convert numeric fields
+                            # Administrative data
+                            feat["administrativeunit"] = str(parcel_info.get("administrativeunit", ""))
+                            feat["municipality_name"] = str(parcel_info.get("municipality_name", ""))
+                            feat["region_name"] = str(parcel_info.get("region_name", ""))
+                            feat["province_name"] = str(parcel_info.get("province_name", ""))
+                            feat["province_code"] = str(parcel_info.get("province_code", ""))
+                            feat["postal_code"] = str(parcel_info.get("postal_code", ""))
+
+                            # Physical characteristics - safe numeric conversion
                             feat["footprint_sqm"] = float(parcel_info.get("footprint_sqm", 0.0)) if parcel_info.get("footprint_sqm") is not None else 0.0
                             feat["elevation_min"] = float(parcel_info.get("elevation_min", 0.0)) if parcel_info.get("elevation_min") is not None else 0.0
                             feat["elevation_max"] = float(parcel_info.get("elevation_max", 0.0)) if parcel_info.get("elevation_max") is not None else 0.0
-                            feat["densita_abitativa"] = float(parcel_info.get("densita_abitativa", 0.0)) if parcel_info.get("densita_abitativa") is not None else 0.0
-                            feat["eta_media"] = float(parcel_info.get("eta_media", 0.0)) if parcel_info.get("eta_media") is not None else 0.0
-                            feat["tasso_occupazione"] = float(parcel_info.get("tasso_occupazione", 0.0)) if parcel_info.get("tasso_occupazione") is not None else 0.0
-                            feat["buildings_count"] = int(parcel_info.get("buildings_count", 0)) if parcel_info.get("buildings_count") is not None else 0
+                            feat["ruggedness_index"] = float(parcel_info.get("ruggedness_index", 0.0)) if parcel_info.get("ruggedness_index") is not None else 0.0
+                            feat["number_of_points"] = int(parcel_info.get("number_of_points", 0)) if parcel_info.get("number_of_points") is not None else 0
                             
+                            # Land use and classification
                             feat["class"] = str(parcel_info.get("class", ""))
                             feat["subtype"] = str(parcel_info.get("subtype", ""))
                             feat["landcover"] = str(parcel_info.get("landcover", ""))
+                            feat["buildings_count"] = int(parcel_info.get("buildings_count", 0)) if parcel_info.get("buildings_count") is not None else 0
+                            
+                            # Census and demographics
+                            feat["estimated_population"] = int(parcel_info.get("estimated_population", 0)) if parcel_info.get("estimated_population") is not None else 0
+                            feat["average_age"] = float(parcel_info.get("average_age", 0.0)) if parcel_info.get("average_age") is not None else 0.0
+                            feat["average_family_size"] = float(parcel_info.get("average_family_size", 0.0)) if parcel_info.get("average_family_size") is not None else 0.0
+                            feat["masculinity_rate"] = float(parcel_info.get("masculinity_rate", 0.0)) if parcel_info.get("masculinity_rate") is not None else 0.0
+                            feat["single_person_rate"] = float(parcel_info.get("single_person_rate", 0.0)) if parcel_info.get("single_person_rate") is not None else 0.0
+                            feat["large_families_rate"] = float(parcel_info.get("large_families_rate", 0.0)) if parcel_info.get("large_families_rate") is not None else 0.0
+                            feat["elderly_rate"] = float(parcel_info.get("elderly_rate", 0.0)) if parcel_info.get("elderly_rate") is not None else 0.0
+                            
+                            # Housing and employment
+                            feat["housing_density"] = float(parcel_info.get("housing_density", 0.0)) if parcel_info.get("housing_density") is not None else 0.0
+                            feat["average_building_occupancy"] = float(parcel_info.get("average_building_occupancy", 0.0)) if parcel_info.get("average_building_occupancy") is not None else 0.0
+                            feat["employment_rate"] = float(parcel_info.get("employment_rate", 0.0)) if parcel_info.get("employment_rate") is not None else 0.0
+                            feat["female_employment_rate"] = float(parcel_info.get("female_employment_rate", 0.0)) if parcel_info.get("female_employment_rate") is not None else 0.0
+                            feat["employment_gender_gap"] = float(parcel_info.get("employment_gender_gap", 0.0)) if parcel_info.get("employment_gender_gap") is not None else 0.0
+                            
+                            # Education and social indicators
+                            feat["higher_education_rate"] = float(parcel_info.get("higher_education_rate", 0.0)) if parcel_info.get("higher_education_rate") is not None else 0.0
+                            feat["low_education_rate"] = float(parcel_info.get("low_education_rate", 0.0)) if parcel_info.get("low_education_rate") is not None else 0.0
+                            feat["foreign_population_rate"] = float(parcel_info.get("foreign_population_rate", 0.0)) if parcel_info.get("foreign_population_rate") is not None else 0.0
+                            feat["labor_integration_rate"] = float(parcel_info.get("labor_integration_rate", 0.0)) if parcel_info.get("labor_integration_rate") is not None else 0.0
+                            feat["non_eu_foreigners_rate"] = float(parcel_info.get("non_eu_foreigners_rate", 0.0)) if parcel_info.get("non_eu_foreigners_rate") is not None else 0.0
+                            feat["young_foreigners_rate"] = float(parcel_info.get("young_foreigners_rate", 0.0)) if parcel_info.get("young_foreigners_rate") is not None else 0.0
+                            
+                            # Economic and development indices
+                            feat["structural_dependency_index"] = float(parcel_info.get("structural_dependency_index", 0.0)) if parcel_info.get("structural_dependency_index") is not None else 0.0
+                            feat["population_turnover_index"] = float(parcel_info.get("population_turnover_index", 0.0)) if parcel_info.get("population_turnover_index") is not None else 0.0
+                            feat["real_estate_potential_index"] = float(parcel_info.get("real_estate_potential_index", 0.0)) if parcel_info.get("real_estate_potential_index") is not None else 0.0
+                            feat["redevelopment_opportunity_index"] = float(parcel_info.get("redevelopment_opportunity_index", 0.0)) if parcel_info.get("redevelopment_opportunity_index") is not None else 0.0
+                            feat["economic_resilience_index"] = float(parcel_info.get("economic_resilience_index", 0.0)) if parcel_info.get("economic_resilience_index") is not None else 0.0
+                            feat["social_cohesion_index"] = float(parcel_info.get("social_cohesion_index", 0.0)) if parcel_info.get("social_cohesion_index") is not None else 0.0
+                            
+                            # Risk assessments
                             feat["flood_risk"] = str(parcel_info.get("flood_risk", ""))
                             feat["landslide_risk"] = str(parcel_info.get("landslide_risk", ""))
+                            feat["coastalerosion_risk"] = str(parcel_info.get("coastalerosion_risk", ""))
                             feat["seismic_risk"] = str(parcel_info.get("seismic_risk", ""))
                             
+                            # Address information
+                            feat["primary_street_address"] = str(parcel_info.get("primary_street_address", ""))
+                            feat["address_numbers"] = str(parcel_info.get("address_numbers", ""))
+
                             # Handle geometry processing with improved error handling
                             geometry_processed = False
                             if "geom" in parcel_info and parcel_info["geom"]:
@@ -736,54 +986,77 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo(self.tr("Styling applied successfully!"))
 
     def _create_land_use_renderer(self, layer: QgsVectorLayer, feedback: QgsProcessingFeedback):
-        """Create a categorized renderer based on land use classification."""
+        """Create a categorized renderer based on land use classification with enhanced styling."""
         
-        # Define color scheme for different land use types
+        # Enhanced color scheme for different land use types
         land_use_colors = {
-            # Residential
-            'residential': QColor(255, 230, 153),  # Light yellow
-            'housing': QColor(255, 204, 128),      # Light orange
-            'urban': QColor(255, 179, 102),        # Orange
+            # Residential categories
+            'residential': QColor(255, 230, 153),    # Light yellow
+            'housing': QColor(255, 204, 128),        # Light orange  
+            'urban': QColor(255, 179, 102),          # Orange
+            'dwelling': QColor(255, 255, 179),       # Very light yellow
+            'apartment': QColor(255, 218, 128),      # Pale orange
             
-            # Commercial/Industrial
-            'commercial': QColor(204, 153, 255),   # Light purple
-            'industrial': QColor(153, 102, 204),   # Purple
-            'business': QColor(128, 77, 179),      # Dark purple
+            # Commercial/Business
+            'commercial': QColor(204, 153, 255),     # Light purple
+            'business': QColor(179, 128, 255),       # Medium purple
+            'retail': QColor(153, 102, 204),         # Purple
+            'office': QColor(218, 179, 255),         # Very light purple
+            'shop': QColor(191, 153, 230),           # Light lavender
             
-            # Agricultural
-            'agricultural': QColor(153, 255, 153), # Light green
-            'farmland': QColor(102, 204, 102),     # Green
-            'crops': QColor(76, 153, 76),          # Dark green
+            # Industrial
+            'industrial': QColor(153, 102, 204),     # Purple
+            'factory': QColor(128, 77, 179),         # Dark purple
+            'warehouse': QColor(102, 51, 153),       # Very dark purple
+            'manufacturing': QColor(140, 90, 190),   # Medium dark purple
+            
+            # Agricultural/Rural
+            'agricultural': QColor(153, 255, 153),   # Light green
+            'farmland': QColor(102, 204, 102),       # Green
+            'crops': QColor(76, 153, 76),            # Dark green
+            'farm': QColor(128, 230, 128),           # Bright light green
+            'rural': QColor(102, 179, 102),          # Medium green
+            'vineyard': QColor(153, 204, 102),       # Yellow-green
+            'orchard': QColor(128, 204, 128),        # Light-medium green
             
             # Natural/Forest
-            'forest': QColor(0, 128, 0),           # Dark green
-            'woodland': QColor(34, 139, 34),       # Forest green
-            'natural': QColor(107, 142, 35),       # Olive
+            'forest': QColor(34, 139, 34),           # Forest green
+            'woodland': QColor(0, 128, 0),           # Dark green
+            'natural': QColor(107, 142, 35),         # Olive
+            'park': QColor(124, 252, 0),             # Lawn green
+            'green': QColor(50, 205, 50),            # Lime green
             
-            # Water
-            'water': QColor(173, 216, 230),        # Light blue
-            'wetland': QColor(135, 206, 235),      # Sky blue
+            # Water features
+            'water': QColor(173, 216, 230),          # Light blue
+            'wetland': QColor(135, 206, 235),        # Sky blue
+            'river': QColor(100, 149, 237),          # Cornflower blue
+            'lake': QColor(70, 130, 180),            # Steel blue
             
-            # Infrastructure
-            'transport': QColor(128, 128, 128),    # Gray
+            # Infrastructure/Transport
+            'transport': QColor(128, 128, 128),      # Gray
             'infrastructure': QColor(105, 105, 105), # Dim gray
-            'utilities': QColor(169, 169, 169),    # Dark gray
+            'utilities': QColor(169, 169, 169),      # Dark gray  
+            'road': QColor(64, 64, 64),              # Very dark gray
+            'railway': QColor(96, 96, 96),           # Dark gray
+            'airport': QColor(192, 192, 192),        # Light gray
             
-            # Special/Other
-            'recreational': QColor(255, 182, 193), # Light pink
-            'public': QColor(255, 160, 122),       # Light salmon
-            'cemetery': QColor(139, 69, 19),       # Saddle brown
-            'unknown': QColor(211, 211, 211),      # Light gray
-            'other': QColor(192, 192, 192)         # Silver
-        }
-        
-        # Risk assessment overlay colors (for stroke)
-        risk_stroke_colors = {
-            'high': QColor(255, 0, 0),      # Red
-            'medium': QColor(255, 165, 0),  # Orange  
-            'low': QColor(0, 255, 0),       # Green
-            'none': QColor(128, 128, 128),  # Gray
-            'unknown': QColor(64, 64, 64)   # Dark gray
+            # Special use
+            'recreational': QColor(255, 182, 193),   # Light pink
+            'sport': QColor(255, 160, 122),          # Light salmon
+            'public': QColor(255, 140, 105),         # Salmon
+            'institutional': QColor(255, 218, 185),  # Peach
+            'educational': QColor(255, 239, 213),    # Papaya whip
+            'healthcare': QColor(255, 228, 225),     # Misty rose
+            'religious': QColor(230, 230, 250),      # Lavender
+            'cemetery': QColor(139, 69, 19),         # Saddle brown
+            'military': QColor(85, 107, 47),         # Dark olive green
+            
+            # Mixed/Other
+            'mixed': QColor(221, 160, 221),          # Plum
+            'unknown': QColor(211, 211, 211),        # Light gray
+            'other': QColor(192, 192, 192),          # Silver
+            'vacant': QColor(245, 245, 220),         # Beige
+            'undeveloped': QColor(250, 240, 230)     # Linen
         }
         
         categories = []
@@ -792,36 +1065,44 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
         unique_classes = set()
         for feature in layer.getFeatures():
             land_class = str(feature['class']).lower().strip()
-            if land_class:
+            if land_class and land_class != 'null':
                 unique_classes.add(land_class)
         
         feedback.pushInfo(self.tr("Found {} unique land use classes".format(len(unique_classes))))
         
-        # Create categories for each land use type
+        # Create categories for each land use type with intelligent color matching
         for land_class in sorted(unique_classes):
             if not land_class or land_class == 'null':
                 continue
                 
-            # Determine color based on land use keywords
-            fill_color = land_use_colors.get('other')  # Default
+            # Find best color match using keyword matching
+            fill_color = land_use_colors.get('other')  # Default fallback
             
-            # Match land use to color scheme
-            for keyword, color in land_use_colors.items():
-                if keyword in land_class:
-                    fill_color = color
-                    break
+            # Try exact match first
+            if land_class in land_use_colors:
+                fill_color = land_use_colors[land_class]
+            else:
+                # Try partial matches with scoring
+                best_score = 0
+                for keyword, color in land_use_colors.items():
+                    if keyword in land_class or land_class in keyword:
+                        # Score based on length of match
+                        score = len(keyword) if keyword in land_class else len(land_class)
+                        if score > best_score:
+                            best_score = score
+                            fill_color = color
             
-            # Create symbol with semi-transparent fill and contrasting stroke
+            # Create symbol with enhanced styling
             symbol = QgsFillSymbol.createSimple({
                 'color': fill_color.name(),
                 'color_border': QColor(64, 64, 64).name(),  # Dark gray border
                 'style': 'solid',
                 'style_border': 'solid',
-                'width_border': '0.3',
-                'opacity': '0.7'
+                'width_border': '0.4',
+                'opacity': '0.75'
             })
             
-            # Create category
+            # Create category with formatted label
             category = QgsRendererCategory(
                 land_class,
                 symbol,
@@ -829,14 +1110,14 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
             )
             categories.append(category)
         
-        # Create "No Data" category
+        # Create "No Data" category with distinctive pattern
         no_data_symbol = QgsFillSymbol.createSimple({
-            'color': QColor(211, 211, 211).name(),  # Light gray
+            'color': QColor(240, 240, 240).name(),  # Very light gray
             'color_border': QColor(128, 128, 128).name(),
             'style': 'dense6',  # Hatched pattern
-            'style_border': 'solid',
-            'width_border': '0.2',
-            'opacity': '0.5'
+            'style_border': 'dash',
+            'width_border': '0.3',
+            'opacity': '0.4'
         })
         
         no_data_category = QgsRendererCategory(
@@ -850,23 +1131,24 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
         renderer = QgsCategorizedSymbolRenderer('class', categories)
         layer.setRenderer(renderer)
         
-        feedback.pushInfo(self.tr("Applied categorized symbology with {} categories".format(len(categories))))
-
-    def _format_class_label(self, class_name: str) -> str:
-        """Format class name for display in legend."""
-        # Capitalize first letter of each word and replace underscores
-        formatted = class_name.replace('_', ' ').title()
-        return formatted
+        feedback.pushInfo(self.tr("Applied enhanced categorized symbology with {} categories".format(len(categories))))
 
     def _apply_parcel_labels(self, layer: QgsVectorLayer, feedback: QgsProcessingFeedback):
-        """Apply informative labels to parcels."""
+        """Apply comprehensive labels showing key parcel information."""
         
         # Create label settings
         label_settings = QgsPalLayerSettings()
         
-        # Set label expression - show FID and land use class
+        # Enhanced label expression showing multiple key fields
         label_settings.fieldName = '''
         CASE 
+            WHEN "municipality_name" IS NOT NULL AND "municipality_name" != '' THEN
+                CASE
+                    WHEN "class" IS NOT NULL AND "class" != '' THEN
+                        "fid" || '\n' || "municipality_name" || '\n' || "class"
+                    ELSE
+                        "fid" || '\n' || "municipality_name"
+                END
             WHEN "class" IS NOT NULL AND "class" != '' THEN
                 "fid" || '\n' || "class"
             ELSE
@@ -875,42 +1157,44 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
         '''
         label_settings.isExpression = True
         
-        # Text formatting
+        # Enhanced text formatting
         text_format = QgsTextFormat()
         text_format.setFont(layer.labelsFont())
-        text_format.setSize(8)
-        text_format.setColor(QColor(0, 0, 0))  # Black text
+        text_format.setSize(7)  # Slightly smaller for multi-line labels
+        text_format.setColor(QColor(20, 20, 20))  # Very dark gray (more readable than pure black)
         
-        # Add text buffer (halo effect)
+        # Enhanced text buffer with better contrast
         buffer_settings = QgsTextBufferSettings()
         buffer_settings.setEnabled(True)
-        buffer_settings.setSize(1)
-        buffer_settings.setColor(QColor(255, 255, 255, 200))  # Semi-transparent white
+        buffer_settings.setSize(1.2)
+        buffer_settings.setColor(QColor(255, 255, 255, 220))  # Semi-transparent white
+        buffer_settings.setOpacity(0.9)
         text_format.setBuffer(buffer_settings)
         
         label_settings.setFormat(text_format)
         
-        # Label placement
-        label_settings.placement = QgsPalLayerSettings.AroundPoint
+        # Improved label placement
+        label_settings.placement = QgsPalLayerSettings.OverPoint
         label_settings.centroidWhole = True
         label_settings.centroidInside = True
         
-        # Only show labels at certain scale ranges (avoid clutter)
+        # Scale visibility optimized for detailed parcels
         label_settings.scaleVisibility = True
-        label_settings.minimumScale = 500    # Show when zoomed in closer than 1:500
-        label_settings.maximumScale = 50000  # Hide when zoomed out beyond 1:50,000
+        label_settings.minimumScale = 250     # Show when very zoomed in
+        label_settings.maximumScale = 25000   # Hide when zoomed out
         
-        # Priority and obstacles
-        label_settings.priority = 5
+        # Enhanced priority and obstacle handling
+        label_settings.priority = 6
         label_settings.obstacle = True
-        label_settings.obstacleFactor = 0.5
+        label_settings.obstacleFactor = 0.3
+        label_settings.displayAll = False  # Allow label competition for cleaner display
         
         # Apply labeling
         labeling = QgsVectorLayerSimpleLabeling(label_settings)
         layer.setLabeling(labeling)
         layer.setLabelsEnabled(True)
         
-        feedback.pushInfo(self.tr("Applied intelligent parcel labels (visible at scales 1:500 to 1:50,000)"))
+        feedback.pushInfo(self.tr("Applied comprehensive parcel labels (visible at scales 1:250 to 1:25,000)"))
 
     def postProcessAlgorithm(self, context: QgsProcessingContext, feedback: QgsProcessingFeedback) -> dict[str, Any]:
         """

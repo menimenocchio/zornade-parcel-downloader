@@ -89,114 +89,166 @@ Zornade Italian Parcel Downloader is a professional-grade QGIS plugin that provi
 
 ## Data Structure
 
-The plugin creates a polygon layer with the following attributes:
+The plugin creates a polygon layer with comprehensive enriched attributes covering 57 data fields:
 
+### Core Identification & Administrative
 | Field | Type | Description |
 |-------|------|-------------|
 | `fid` | String | Unique parcel identifier |
 | `gml_id` | String | GML ID from cadastral system |
+| `label` | String | Parcel label/name |
 | `administrativeunit` | String | Administrative unit code |
-| `comune_name` | String | Municipality name |
+| `municipality_name` | String | Municipality name |
+| `region_name` | String | Region name |
+| `province_name` | String | Province name |
+| `province_code` | String | Province code |
+| `postal_code` | String | Postal code |
+
+### Physical Characteristics & Geography
+| Field | Type | Description |
+|-------|------|-------------|
 | `footprint_sqm` | Double | Parcel area in square meters |
 | `elevation_min` | Double | Minimum elevation (meters) |
 | `elevation_max` | Double | Maximum elevation (meters) |
+| `ruggedness_index` | Double | Terrain ruggedness measure |
+| `number_of_points` | Integer | Number of geometry points |
+
+### Land Use & Classification
+| Field | Type | Description |
+|-------|------|-------------|
 | `class` | String | Primary land use classification |
 | `subtype` | String | Detailed land use subtype |
-| `landcover` | String | Land cover type |
-| `densita_abitativa` | Double | Population density |
-| `eta_media` | Double | Average age of residents |
-| `tasso_occupazione` | Double | Employment rate |
-| `flood_risk` | String | Flood risk assessment |
-| `landslide_risk` | String | Landslide risk assessment |
-| `seismic_risk` | String | Seismic risk assessment |
+| `landcover` | String | Land cover type classification |
 | `buildings_count` | Integer | Number of buildings on parcel |
 
-## Performance Guidelines
+### Demographics & Population
+| Field | Type | Description |
+|-------|------|-------------|
+| `census_section_id` | String | Census section identifier |
+| `section_type_code` | String | Census section type code |
+| `estimated_population` | Integer | Estimated population count |
+| `average_age` | Double | Average age of residents |
+| `average_family_size` | Double | Average family size |
+| `masculinity_rate` | Double | Male to female ratio |
+| `single_person_rate` | Double | Single person household rate |
+| `large_families_rate` | Double | Large family household rate |
+| `elderly_rate` | Double | Elderly population percentage |
 
-### Optimal Usage
-- **Small Areas**: Start with areas under 1 km² for testing
-- **Incremental Expansion**: Gradually increase area size based on performance
-- **Peak Hours**: Avoid peak usage times for faster processing
-- **Saved Credentials**: Use saved credentials to avoid re-entry
+### Housing & Employment
+| Field | Type | Description |
+|-------|------|-------------|
+| `housing_density` | Double | Housing units per area |
+| `average_building_occupancy` | Double | Average building occupancy rate |
+| `employment_rate` | Double | Employment rate percentage |
+| `female_employment_rate` | Double | Female employment rate |
+| `employment_gender_gap` | Double | Employment gender gap measure |
 
-### Performance Expectations
-| Area Size | Typical Parcels | Processing Time |
-|-----------|----------------|-----------------|
-| City Block | 10-50 parcels | 1-2 minutes |
-| Neighborhood | 100-500 parcels | 5-15 minutes |
-| Municipality | 1,000+ parcels | 20+ minutes |
+### Education & Social Indicators
+| Field | Type | Description |
+|-------|------|-------------|
+| `higher_education_rate` | Double | Higher education attainment rate |
+| `low_education_rate` | Double | Low education level rate |
+| `foreign_population_rate` | Double | Foreign population percentage |
+| `labor_integration_rate` | Double | Labor market integration rate |
+| `non_eu_foreigners_rate` | Double | Non-EU foreign population rate |
+| `young_foreigners_rate` | Double | Young foreign population rate |
 
-### Large Dataset Tips
-- **Break Into Chunks**: Process large areas in smaller sections
-- **Monitor Progress**: Use the progress bar and log messages
-- **Error Tolerance**: Plugin handles up to 10% errors automatically
-- **Stable Connection**: Ensure stable internet for large downloads
+### Economic & Development Indices
+| Field | Type | Description |
+|-------|------|-------------|
+| `structural_dependency_index` | Double | Economic dependency measure |
+| `population_turnover_index` | Double | Population mobility indicator |
+| `real_estate_potential_index` | Double | Real estate investment potential |
+| `redevelopment_opportunity_index` | Double | Redevelopment opportunity score |
+| `economic_resilience_index` | Double | Economic resilience measure |
+| `social_cohesion_index` | Double | Social cohesion indicator |
 
-## Troubleshooting
+### Risk Assessments
+| Field | Type | Description |
+|-------|------|-------------|
+| `flood_risk` | String | Flood risk level assessment |
+| `landslide_risk` | String | Landslide risk level assessment |
+| `coastalerosion_risk` | String | Coastal erosion risk assessment |
+| `seismic_risk` | String | Seismic risk level assessment |
 
-### Common Issues
+### Address & Location
+| Field | Type | Description |
+|-------|------|-------------|
+| `primary_street_address` | String | Primary street address |
+| `address_numbers` | String | Address numbers |
 
-#### Authentication Problems
-**Symptoms**: 401/403 errors, "Authentication failed" messages
-**Solutions**:
-- Verify RapidAPI key is correct and active
-- Ensure Bearer token is entered without 'Bearer ' prefix
-- Check subscription status on RapidAPI dashboard
-- Confirm API quota hasn't been exceeded
+## Advanced Analysis Capabilities
 
-#### No Results Returned
-**Symptoms**: "No parcels found" message
-**Solutions**:
-- Verify bounding box covers area within Italy
-- Try smaller, more specific areas
-- Check coordinate system of input extent
-- Ensure area contains cadastral parcels
+### Risk Assessment Analysis
+- **Multi-hazard Assessment**: Combine flood, landslide, coastal erosion, and seismic risk data
+- **Risk Mapping**: Create comprehensive risk maps for disaster preparedness
+- **Vulnerability Analysis**: Identify high-risk areas for targeted intervention
 
-#### Performance Issues
-**Symptoms**: Slow processing, timeouts
-**Solutions**:
-- Reduce bounding box size
-- Check internet connection stability
-- Process during off-peak hours
-- Close other bandwidth-intensive applications
+### Demographic Analysis
+- **Population Dynamics**: Analyze age distribution, family structure, and migration patterns
+- **Social Indicators**: Study education levels, employment patterns, and social cohesion
+- **Integration Metrics**: Assess foreign population integration and labor market participation
 
-#### Geometry Errors
-**Symptoms**: Missing or invalid geometries
-**Solutions**:
-- Check error messages in log for specific issues
-- Verify API is returning valid geometry data
-- Report persistent geometry issues to support
+### Economic Analysis
+- **Real Estate Potential**: Evaluate investment opportunities using economic indices
+- **Development Planning**: Use redevelopment indices for urban planning decisions
+- **Economic Resilience**: Assess economic stability and growth potential
 
-### Error Codes Reference
-
-| Code | Meaning | Action |
-|------|---------|--------|
-| 401 | Authentication failed | Check API credentials |
-| 403 | Access forbidden | Verify subscription status |
-| 404 | Parcel not found | Normal - some parcels may be unavailable |
-| 429 | Rate limit exceeded | Wait and retry with smaller area |
-| 500 | Server error | Retry later or contact support |
+### Urban Planning Applications
+- **Land Use Optimization**: Analyze current land use patterns and plan future development
+- **Infrastructure Planning**: Use housing density and building counts for infrastructure needs
+- **Environmental Planning**: Integrate elevation, ruggedness, and land cover data
 
 ## Advanced Usage
 
-### Batch Processing
-For processing multiple areas:
-1. Save your credentials once
-2. Use QGIS Model Builder to automate multiple downloads
-3. Combine results using QGIS merge tools
+### Multi-Criteria Analysis Examples
 
-### Integration with Other Tools
-- **Database Import**: Export results to PostGIS, SpatiaLite, or other databases
-- **Analysis Workflows**: Integrate with QGIS processing models
-- **Reporting**: Use QGIS layout manager for professional reports
-- **Web Services**: Publish results via QGIS Server
+#### Real Estate Investment Analysis
+```python
+# Example QGIS expression for investment scoring
+("real_estate_potential_index" * 0.4) + 
+("economic_resilience_index" * 0.3) + 
+(CASE WHEN "flood_risk" = 'low' THEN 20 
+      WHEN "flood_risk" = 'medium' THEN 10 
+      ELSE 0 END * 0.3)
+```
 
-### Custom Styling
-Example styling approaches:
-- **Risk Assessment**: Color-code by flood/landslide/seismic risk
-- **Land Use**: Categorize by class and subtype
-- **Demographics**: Style by population density or age
-- **Elevation**: Create elevation-based symbology
+#### Social Vulnerability Assessment
+```python
+# Social vulnerability composite score
+("elderly_rate" * 0.25) + 
+("low_education_rate" * 0.25) + 
+("foreign_population_rate" * 0.25) + 
+(100 - "employment_rate") * 0.25
+```
+
+#### Climate Risk Evaluation
+```python
+# Multi-hazard risk score
+(CASE WHEN "flood_risk" = 'high' THEN 3
+      WHEN "flood_risk" = 'medium' THEN 2
+      WHEN "flood_risk" = 'low' THEN 1
+      ELSE 0 END) +
+(CASE WHEN "landslide_risk" = 'high' THEN 3
+      WHEN "landslide_risk" = 'medium' THEN 2
+      WHEN "landslide_risk" = 'low' THEN 1
+      ELSE 0 END) +
+(CASE WHEN "seismic_risk" = 'high' THEN 3
+      WHEN "seismic_risk" = 'medium' THEN 2
+      WHEN "seismic_risk" = 'low' THEN 1
+      ELSE 0 END)
+```
+
+### Professional Styling Examples
+
+#### Risk-Based Symbology
+Create categorized styling based on combined risk assessments with color gradients from green (low risk) to red (high risk).
+
+#### Demographic Heat Maps
+Use graduated symbology for population density, age distribution, or education levels to identify demographic patterns.
+
+#### Economic Opportunity Mapping
+Combine real estate potential and economic resilience indices to create opportunity heat maps for investment planning.
 
 ## Support & Community
 
@@ -234,4 +286,4 @@ This plugin is licensed under the **GNU General Public License v2.0 or later (GP
 
 ---
 
-**Version**: 1.0.0 | **Last Updated**: 2024 | **Maintained by**: Zornade Team
+**Version**: 1.2.0 | **Last Updated**: 2025 | **Maintained by**: Zornade Team

@@ -1,6 +1,6 @@
 PLUGINNAME = zornade_parcel_downloader
 PLUGINS = $(HOME)/.local/share/QGIS/QGIS3/profiles/default/python/plugins
-PY_FILES = __init__.py zornade_parcel_downloader.py parcel_downloader_provider.py ParcelDownloader.py
+PY_FILES = __init__.py zornade_parcel_downloader.py parcel_downloader_provider.py ParcelDownloader.py rapidapi_auth.py
 EXTRAS = metadata.txt icon.png README.md
 
 %.qm : %.ts

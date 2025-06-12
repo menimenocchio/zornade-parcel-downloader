@@ -106,11 +106,13 @@ class ZornadeParcelDownloader:
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
         icon_path = os.path.join(self.plugin_dir, 'icon.png')
+        
+        # Single main action with submenu functionality
         self.add_action(
             icon_path,
-            text=self.tr(u'Download Italian Parcels'),
-            callback=self.run,
-            status_tip=self.tr(u'Download Italian cadastral parcels from Zornade'),
+            text=self.tr(u'Zornade Italian Parcel Downloader'),
+            callback=self.show_main_menu,
+            status_tip=self.tr(u'Access Zornade Italian cadastral parcel downloader'),
             whats_this=self.tr(u'Download enriched Italian cadastral parcel data from Zornade\'s comprehensive dataset'),
             parent=self.iface.mainWindow())
 
@@ -181,3 +183,44 @@ class ZornadeParcelDownloader:
                     "Processing → Toolbox\n\n"
                     "Then navigate to: Zornade API → Zornade Parcel Downloader"
                 )
+
+    def show_main_menu(self):
+        """Show main menu with options."""
+        from qgis.PyQt.QtWidgets import QMenu, QAction
+        from qgis.PyQt.QtGui import QIcon
+        
+        menu = QMenu(self.iface.mainWindow())
+        
+        # Download parcels action
+        download_action = QAction("Download Italian Parcels", menu)
+        download_action.setIcon(QIcon(":/images/themes/default/algorithms/mAlgorithmVectorize.svg"))
+        download_action.triggered.connect(self.run)
+        menu.addAction(download_action)
+        
+        # Separator
+        menu.addSeparator()
+        
+        # Manage credentials action
+        credentials_action = QAction("Manage API Credentials", menu)
+        credentials_action.setIcon(QIcon(":/images/themes/default/mActionOptions.svg"))
+        credentials_action.triggered.connect(self.manage_credentials)
+        menu.addAction(credentials_action)
+        
+        # Show menu at cursor position
+        menu.exec_(self.iface.mainWindow().cursor().pos())
+
+    def manage_credentials(self):
+        """Show enhanced credential management dialog."""
+        try:
+            from .rapidapi_auth import SmartAuthDialog
+            
+            auth_dialog = SmartAuthDialog(self.iface.mainWindow())
+            auth_dialog.exec_()
+                
+        except Exception as e:
+            from qgis.PyQt.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self.iface.mainWindow(),
+                "Error",
+                f"Could not access credential management: {str(e)}"
+            )
