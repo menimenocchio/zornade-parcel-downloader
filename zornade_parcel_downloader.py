@@ -191,18 +191,68 @@ class ZornadeParcelDownloader:
         
         menu = QMenu(self.iface.mainWindow())
         
-        # Download parcels action
+        # Download parcels action with fallback icon approach
         download_action = QAction("Download Italian Parcels", menu)
-        download_action.setIcon(QIcon(":/images/themes/default/algorithms/mAlgorithmVectorize.svg"))
+        
+        # Try multiple icon sources for better compatibility
+        download_icon = None
+        icon_sources = [
+            ":/images/themes/default/algorithms/mAlgorithmVectorize.svg",
+            ":/images/themes/default/mActionAddOgrLayer.svg",
+            ":/images/themes/default/mActionDataSourceManager.svg",
+            ":/images/themes/default/mActionDownload.svg"
+        ]
+        
+        for icon_path in icon_sources:
+            icon = QIcon(icon_path)
+            if not icon.isNull():
+                download_icon = icon
+                break
+        
+        # If no system icon works, try to use the plugin icon
+        if download_icon is None or download_icon.isNull():
+            plugin_icon_path = os.path.join(self.plugin_dir, 'icon.png')
+            if os.path.exists(plugin_icon_path):
+                download_icon = QIcon(plugin_icon_path)
+        
+        # Set the icon if we found one
+        if download_icon and not download_icon.isNull():
+            download_action.setIcon(download_icon)
+        
         download_action.triggered.connect(self.run)
         menu.addAction(download_action)
         
         # Separator
         menu.addSeparator()
         
-        # Manage credentials action
+        # Manage credentials action with fallback icon approach
         credentials_action = QAction("Manage API Credentials", menu)
-        credentials_action.setIcon(QIcon(":/images/themes/default/mActionOptions.svg"))
+        
+        # Try multiple icon sources for credentials
+        credentials_icon = None
+        credentials_icon_sources = [
+            ":/images/themes/default/mActionOptions.svg",
+            ":/images/themes/default/mActionSettings.svg",
+            ":/images/themes/default/mActionLock.svg",
+            ":/images/themes/default/mActionPassword.svg"
+        ]
+        
+        for icon_path in credentials_icon_sources:
+            icon = QIcon(icon_path)
+            if not icon.isNull():
+                credentials_icon = icon
+                break
+        
+        # If no system icon works, try to use the plugin icon
+        if credentials_icon is None or credentials_icon.isNull():
+            plugin_icon_path = os.path.join(self.plugin_dir, 'icon.png')
+            if os.path.exists(plugin_icon_path):
+                credentials_icon = QIcon(plugin_icon_path)
+        
+        # Set the icon if we found one
+        if credentials_icon and not credentials_icon.isNull():
+            credentials_action.setIcon(credentials_icon)
+        
         credentials_action.triggered.connect(self.manage_credentials)
         menu.addAction(credentials_action)
         

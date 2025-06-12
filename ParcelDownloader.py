@@ -79,21 +79,14 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
     """
 
     # --- Parameter definition ---
-    # Input parameters
+    # Input parameters (credentials removed - handled by credential manager)
     BBOX = "BBOX"
-    API_KEY = "API_KEY"
-    AUTH_TOKEN = "AUTH_TOKEN"
-    SAVE_API_KEY = "SAVE_API_KEY"
-    AUTO_AUTH = "AUTO_AUTH"
 
     # Output parameters
     OUTPUT_PARCELS = "OUTPUT_PARCELS"
 
     # --- API Configuration ---
     API_BASE_URL = "https://enriched-cadastral-parcels-for-italy.p.rapidapi.com/functions/v1"
-    SETTINGS_GROUP = "ZornadeParcelDownloader"
-    SETTINGS_API_KEY = "rapidApiKey"
-    SETTINGS_AUTH_TOKEN = "authToken"
 
     def tr(self, string):
         """
@@ -133,25 +126,20 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
         Returns a localised short helper string for the algorithm.
         """
         return self.tr(
-            "Downloads enriched Italian cadastral parcel data from Zornade's comprehensive dataset via RapidAPI based on bounding box query.\n\n"
+            "Downloads enriched Italian cadastral parcel data from Zornade's comprehensive dataset via RapidAPI.\n\n"
             "This algorithm provides access to detailed cadastral information including geometries, administrative data, "
             "risk assessments (flood, landslide, seismic), land cover classification, demographic statistics, and elevation data.\n\n"
-            "Requirements:\n"
-            "• RapidAPI account with active subscription to Zornade's service\n"
-            "• RapidAPI key from your dashboard\n"
-            "• Authorization Bearer Token from the API documentation\n\n"
-            "Setup Instructions:\n"
-            "1. Visit https://rapidapi.com/abigdatacompany-abigdatacompany-default/api/enriched-cadastral-parcels-for-italy\n"
-            "2. Subscribe to Zornade's Italian Cadastral Parcels service\n"
-            "3. Copy your x-rapidapi-key from the RapidAPI dashboard\n"
-            "4. Obtain the Bearer token from the API documentation or test console\n\n"
+            "Setup:\n"
+            "• Use 'Manage API Credentials' from the plugin menu to configure your RapidAPI access\n"
+            "• Visit https://rapidapi.com/abigdatacompany-abigdatacompany-default/api/enriched-cadastral-parcels-for-italy\n"
+            "• Subscribe to Zornade's Italian Cadastral Parcels service\n"
+            "• Enter your credentials using the credential manager\n\n"
             "Usage:\n"
-            "• Enter your RapidAPI key and authorization token (without 'Bearer ' prefix)\n"
             "• Define a bounding box covering your area of interest in Italy\n"
-            "• Choose whether to save credentials securely for future sessions\n"
-            "• The algorithm will automatically transform coordinates and download parcels in batches\n\n"
+            "• The algorithm will automatically use your saved credentials\n"
+            "• Download parcels in batches with automatic coordinate transformation\n\n"
             "Output:\n"
-            "A polygon layer with enriched attributes including risk assessments, demographics, and land use data."
+            "A polygon layer with 57 enriched attributes including risk assessments, demographics, and land use data."
         )
 
     def helpUrl(self):
@@ -165,65 +153,24 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
         """
         Defines the inputs and outputs of the algorithm.
         """
-        # --- Smart Authentication Option ---
-        self.addParameter(
-            QgsProcessingParameterBoolean(
-                self.AUTO_AUTH,
-                self.tr("🔧 Use Smart Authentication (Automatic credential retrieval from RapidAPI)"),
-                defaultValue=True
-            )
-        )
-        
-        # --- API Key Management ---
-        settings = QSettings()
-        saved_api_key = settings.value(f"{self.SETTINGS_GROUP}/{self.SETTINGS_API_KEY}", "")
-        saved_auth_token = settings.value(f"{self.SETTINGS_GROUP}/{self.SETTINGS_AUTH_TOKEN}", "")
-        
-        # Check for automatically retrieved credentials
+        # Check credential status for UI feedback
         authenticator = RapidAPIAuthenticator()
-        auto_credentials = authenticator.get_saved_credentials()
+        saved_creds = authenticator.get_saved_credentials()
         
-        if auto_credentials and auto_credentials.get('auto_retrieved'):
-            api_key_hint = f"✓ Smart Auth: {auto_credentials['rapidapi_key'][:8]}...{auto_credentials['rapidapi_key'][-4:]} ({auto_credentials.get('subscription_plan', 'Unknown Plan')})"
-            auth_token_hint = f"✓ Smart Auth: Auto-retrieved bearer token"
-            saved_api_key = auto_credentials['rapidapi_key']
-            saved_auth_token = auto_credentials['bearer_token']
+        if saved_creds:
+            masked_key = f"{saved_creds['rapidapi_key'][:8]}...{saved_creds['rapidapi_key'][-4:]}"
+            credential_status = f"Using saved credentials: {masked_key}"
         else:
-            if saved_api_key:
-                api_key_hint = f"Manual: {saved_api_key[:8]}...{saved_api_key[-4:]} (masked for security)"
-            else:
-                api_key_hint = "No API key currently saved - Smart Auth recommended"
-            
-            if saved_auth_token:
-                auth_token_hint = f"Manual: {saved_auth_token[:20]}... (masked for security)"
-            else:
-                auth_token_hint = "No auth token currently saved - Smart Auth recommended"
-        
+            credential_status = "No credentials configured - use 'Manage API Credentials' from plugin menu"
+
+        # Add informational parameter showing credential status
         self.addParameter(
             QgsProcessingParameterString(
-                self.API_KEY,
-                self.tr("RapidAPI Key ({})".format(api_key_hint)),
-                defaultValue=saved_api_key,
-                optional=True,  # Optional when using smart auth
+                "CREDENTIAL_INFO",
+                self.tr(f"Credential Status: {credential_status}"),
+                defaultValue="",
+                optional=True,
                 multiLine=False
-            )
-        )
-        
-        self.addParameter(
-            QgsProcessingParameterString(
-                self.AUTH_TOKEN,
-                self.tr("Authorization Bearer Token - enter token only, no 'Bearer ' prefix ({})".format(auth_token_hint)),
-                defaultValue=saved_auth_token,
-                optional=True,  # Optional when using smart auth
-                multiLine=False
-            )
-        )
-        
-        self.addParameter(
-            QgsProcessingParameterBoolean(
-                self.SAVE_API_KEY,
-                self.tr("Save credentials for future sessions (uncheck to remove saved credentials)"),
-                defaultValue=bool(saved_api_key and saved_auth_token)
             )
         )
 
@@ -231,7 +178,7 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterExtent(
                 self.BBOX,
-                self.tr("Bounding Box (will be converted to EPSG:4326 for API)"),
+                self.tr("Bounding Box (area of interest in Italy)"),
                 optional=False
             )
         )
@@ -247,50 +194,22 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
         """
         Validate parameters before processing.
         """
-        use_auto_auth = self.parameterAsBool(parameters, self.AUTO_AUTH, context)
+        # Check if credentials are available
+        authenticator = RapidAPIAuthenticator()
+        saved_creds = authenticator.get_saved_credentials()
         
-        if use_auto_auth:
-            # Check if smart authentication can provide credentials
-            try:
-                from .rapidapi_auth import RapidAPIAuthenticator
-                authenticator = RapidAPIAuthenticator()
-                auto_credentials = authenticator.get_saved_credentials()
-                
-                if not auto_credentials:
-                    # Instead of showing dialog, give clear instructions
-                    raise QgsProcessingException(
-                        self.tr("Smart Authentication enabled but no saved credentials found.\n\n"
-                               "To set up Smart Authentication:\n"
-                               "1. Disable 'Use Smart Authentication'\n"
-                               "2. Enter your RapidAPI credentials manually\n"
-                               "3. Check 'Save credentials for future sessions'\n"
-                               "4. Run the algorithm once\n"
-                               "5. Re-enable Smart Authentication for future use\n\n"
-                               "Alternatively, disable Smart Authentication and enter credentials manually below.")
-                    )
-                setattr(self, '_needs_auth_setup', False)
-            except ImportError:
-                raise QgsProcessingException(
-                    self.tr("Smart Authentication is not available. Please disable it and enter credentials manually.")
-                )
-        else:
-            # Validate manual credentials
-            api_key = self.parameterAsString(parameters, self.API_KEY, context)
-            if not api_key or not api_key.strip():
-                raise QgsProcessingException(
-                    self.tr("RapidAPI Key is required when Smart Authentication is disabled. "
-                           "Please enter your API key.")
-                )
+        if not saved_creds:
+            raise QgsProcessingException(
+                self.tr("No API credentials found.\n\n"
+                       "Please configure your credentials first:\n"
+                       "1. Go to the plugin menu and select 'Manage API Credentials'\n"
+                       "2. Enter your RapidAPI key and bearer token\n"
+                       "3. Test and save your credentials\n"
+                       "4. Run this algorithm again\n\n"
+                       "Need credentials? Visit: https://rapidapi.com/abigdatacompany-abigdatacompany-default/api/enriched-cadastral-parcels-for-italy")
+            )
 
-            auth_token = self.parameterAsString(parameters, self.AUTH_TOKEN, context)
-            if not auth_token or not auth_token.strip():
-                raise QgsProcessingException(
-                    self.tr("Authorization Bearer Token is required when Smart Authentication is disabled. "
-                           "Please enter your token.")
-                )
-            
-            setattr(self, '_needs_auth_setup', False)
-
+        # Validate bounding box
         bbox = self.parameterAsExtent(parameters, self.BBOX, context)
         if bbox.isNull() or bbox.isEmpty():
             raise QgsProcessingException(self.tr("Bounding Box is required."))
@@ -306,113 +225,32 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
         """
         Main processing logic.
         """
-        # Handle Smart Authentication vs Manual Authentication
-        use_auto_auth = self.parameterAsBool(parameters, self.AUTO_AUTH, context)
+        # Get credentials from credential manager
+        feedback.pushInfo(self.tr("🔧 Loading saved credentials..."))
         
-        if use_auto_auth:
-            # Use Smart Authentication (simplified and stable)
-            feedback.pushInfo(self.tr("🔧 Using Smart Authentication..."))
-            try:
-                authenticator = RapidAPIAuthenticator()
-                auto_credentials = authenticator.get_saved_credentials()
-                
-                if auto_credentials:
-                    api_key = auto_credentials['rapidapi_key']
-                    auth_token = auto_credentials['bearer_token']
-                    feedback.pushInfo(self.tr("✅ Using saved Smart Authentication credentials"))
-                    
-                    if auto_credentials.get('subscription_plan'):
-                        feedback.pushInfo(self.tr("📋 Subscription: {}".format(auto_credentials['subscription_plan'])))
-                        
-                    # Quick validation check
-                    if not auto_credentials.get('is_working', True):
-                        feedback.pushWarning(self.tr("⚠️ Previously detected issues with saved credentials. Consider updating them."))
-                else:
-                    # Show simple credential dialog
-                    feedback.pushInfo(self.tr("⚙️ Opening credential setup dialog..."))
-                    
-                    try:
-                        from qgis.PyQt.QtWidgets import QDialog
-                        auth_dialog = SmartAuthDialog()
-                        
-                        if auth_dialog.exec_() == QDialog.Accepted:
-                            credentials = auth_dialog.get_credentials()
-                            if credentials:
-                                api_key = credentials['rapidapi_key']
-                                auth_token = credentials['bearer_token']
-                                feedback.pushInfo(self.tr("🎉 Smart Authentication setup complete!"))
-                                
-                                if credentials.get('subscription_plan'):
-                                    feedback.pushInfo(self.tr("📋 Subscription: {}".format(credentials['subscription_plan'])))
-                            else:
-                                raise QgsProcessingException(
-                                    self.tr("❌ Smart Authentication setup failed. Please try manual authentication.")
-                                )
-                        else:
-                            raise QgsProcessingException(
-                                self.tr("❌ Smart Authentication was cancelled. Please disable Smart Authentication for manual entry.")
-                            )
-                            
-                    except Exception as e:
-                        feedback.reportError(self.tr("Smart Authentication error: {}".format(str(e))))
-                        raise QgsProcessingException(
-                            self.tr("Smart Authentication failed. Please disable Smart Authentication and enter credentials manually.")
-                        )
-                        
-            except ImportError:
-                raise QgsProcessingException(
-                    self.tr("Smart Authentication module not available. Please use manual authentication.")
-                )
-        else:
-            # Use Manual Authentication (unchanged)
-            api_key = self.parameterAsString(parameters, self.API_KEY, context).strip()
-            auth_token = self.parameterAsString(parameters, self.AUTH_TOKEN, context).strip()
-            feedback.pushInfo(self.tr("🔑 Using manual authentication credentials"))
-            
-            # Handle credential saving for manual authentication
-            save_api_key = self.parameterAsBool(parameters, self.SAVE_API_KEY, context)
-            
-            if save_api_key:
-                try:
-                    from .rapidapi_auth import RapidAPIAuthenticator
-                    authenticator = RapidAPIAuthenticator()
-                    credentials = {
-                        'rapidapi_key': api_key,
-                        'bearer_token': auth_token,
-                        'subscription_plan': 'Manual Entry',
-                        'auto_retrieved': True
-                    }
-                    authenticator.save_credentials(credentials)
-                    feedback.pushInfo(self.tr("💾 Credentials saved for Smart Authentication"))
-                except Exception as e:
-                    feedback.pushWarning(self.tr("Could not save credentials: {}".format(str(e))))
+        authenticator = RapidAPIAuthenticator()
+        saved_creds = authenticator.get_saved_credentials()
+        
+        if not saved_creds:
+            # This should not happen due to checkParameterValues, but just in case
+            raise QgsProcessingException(
+                self.tr("No credentials available. Please use 'Manage API Credentials' from the plugin menu.")
+            )
+        
+        api_key = saved_creds['rapidapi_key']
+        auth_token = saved_creds['bearer_token']
+        
+        feedback.pushInfo(self.tr("✅ Using saved credentials"))
+        if saved_creds.get('subscription_plan'):
+            feedback.pushInfo(self.tr("📋 Subscription: {}".format(saved_creds['subscription_plan'])))
+        
+        # Warn if credentials had issues previously
+        if not saved_creds.get('is_working', True):
+            feedback.pushWarning(self.tr("⚠️ Previously detected issues with credentials. They will be retested during processing."))
 
-        # Clean up auth token - remove "Bearer " prefix if user included it
+        # Clean up auth token - remove "Bearer " prefix if present
         if auth_token.lower().startswith('bearer '):
-            auth_token = auth_token[7:]  # Remove "Bearer " prefix
-        
-        # Handle credential saving for manual authentication
-        if not use_auto_auth:
-            save_api_key = self.parameterAsBool(parameters, self.SAVE_API_KEY, context)
-            
-            settings = QSettings()
-            current_saved_api = settings.value(f"{self.SETTINGS_GROUP}/{self.SETTINGS_API_KEY}", "")
-            current_saved_token = settings.value(f"{self.SETTINGS_GROUP}/{self.SETTINGS_AUTH_TOKEN}", "")
-            
-            if save_api_key:
-                if current_saved_api != api_key or current_saved_token != auth_token:
-                    settings.setValue(f"{self.SETTINGS_GROUP}/{self.SETTINGS_API_KEY}", api_key)
-                    settings.setValue(f"{self.SETTINGS_GROUP}/{self.SETTINGS_AUTH_TOKEN}", auth_token)
-                    settings.setValue(f"{self.SETTINGS_GROUP}/manual_override", True)
-                    feedback.pushInfo(self.tr("Manual credentials saved for future sessions."))
-                else:
-                    feedback.pushInfo(self.tr("Using saved manual credentials."))
-            else:
-                if current_saved_api or current_saved_token:
-                    settings.remove(f"{self.SETTINGS_GROUP}/{self.SETTINGS_API_KEY}")
-                    settings.remove(f"{self.SETTINGS_GROUP}/{self.SETTINGS_AUTH_TOKEN}")
-                    settings.remove(f"{self.SETTINGS_GROUP}/manual_override")
-                    feedback.pushInfo(self.tr("Saved manual credentials removed."))
+            auth_token = auth_token[7:]
 
         bbox_extent = self.parameterAsExtent(parameters, self.BBOX, context)
         bbox_crs = self.parameterAsExtentCrs(parameters, self.BBOX, context)
@@ -436,7 +274,7 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
                 "Consider using a smaller area for better performance."
             ).format(bbox_area))
 
-        # Define output fields based on your complete requirements
+        # Define output fields
         fields = QgsFields()
         from qgis.PyQt.QtCore import QVariant
         
@@ -516,7 +354,7 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
             context,
             fields,
             QgsWkbTypes.Polygon,
-            target_crs  # Use EPSG:4326 for output
+            target_crs
         )
 
         if sink is None:
@@ -524,17 +362,17 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
                 self.invalidSinkError(parameters, self.OUTPUT_PARCELS)
             )
 
-        # Prepare API headers with both RapidAPI key and Authorization token
+        # Prepare API headers
         headers = {
             "X-RapidAPI-Key": api_key,
             "X-RapidAPI-Host": "enriched-cadastral-parcels-for-italy.p.rapidapi.com",
             "Content-Type": "application/json",
             "Authorization": "Bearer {}".format(auth_token),
-            "User-Agent": "Zornade-QGIS-Plugin/1.0.0"
+            "User-Agent": "Zornade-QGIS-Plugin/1.5.0"
         }
 
         try:
-            # Step 1: Get parcel FIDs using bounding box only
+            # Test credentials with first API call
             get_parcels_url = "{}/get-parcels".format(self.API_BASE_URL)
             
             parcels_payload = {
@@ -555,27 +393,37 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
             
             parcels_response = requests.post(get_parcels_url, headers=headers, json=parcels_payload, timeout=30)
             
+            # Handle credential-related errors and update status
             if parcels_response.status_code == 401:
+                # Update credential status
+                authenticator.update_credential_status(False)
                 raise QgsProcessingException(
-                    self.tr("Authentication failed. Please check your RapidAPI key and authorization token. "
-                           "Ensure you have an active subscription to the service.")
+                    self.tr("Authentication failed. Your saved credentials appear to be invalid.\n"
+                           "Please update them using 'Manage API Credentials' from the plugin menu.")
                 )
             elif parcels_response.status_code == 403:
+                # Update credential status
+                authenticator.update_credential_status(False)
                 raise QgsProcessingException(
-                    self.tr("Access forbidden. Please verify your subscription is active and you have "
-                           "permission to access this API endpoint.")
+                    self.tr("Access forbidden. Please verify your subscription is active.\n"
+                           "Visit: https://rapidapi.com/abigdatacompany-abigdatacompany-default/api/enriched-cadastral-parcels-for-italy")
                 )
             elif parcels_response.status_code == 429:
+                # Credentials are valid, just rate limited
+                feedback.pushWarning(self.tr("Rate limit exceeded. Please wait and try again with a smaller area."))
                 raise QgsProcessingException(
                     self.tr("Rate limit exceeded. Please wait a moment and try again with a smaller area.")
                 )
             elif parcels_response.status_code != 200:
-                response_text = parcels_response.text[:500]  # Limit error message length
+                response_text = parcels_response.text[:500]
                 raise QgsProcessingException(
                     self.tr("API request failed with status {}: {}".format(
                         parcels_response.status_code, response_text
                     ))
                 )
+            
+            # If we get here, credentials are working - update status
+            authenticator.update_credential_status(True)
             
             try:
                 parcels_data = parcels_response.json()
@@ -1195,6 +1043,10 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
         layer.setLabelsEnabled(True)
         
         feedback.pushInfo(self.tr("Applied comprehensive parcel labels (visible at scales 1:250 to 1:25,000)"))
+
+    def _format_class_label(self, class_name: str) -> str:
+        """Format class name for display in legend."""
+        return class_name.replace('_', ' ').title()
 
     def postProcessAlgorithm(self, context: QgsProcessingContext, feedback: QgsProcessingFeedback) -> dict[str, Any]:
         """
