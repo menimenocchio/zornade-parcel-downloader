@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 RapidAPI Authentication Module for Zornade Italian Parcel Downloader
-Minimal, functional credential management with native Qt styling.
+Minimal, functional credential management with enhanced Qt UI.
 """
 
 import base64
@@ -14,9 +14,9 @@ from qgis.PyQt.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
     QLineEdit, QMessageBox, QApplication, QGroupBox, QCheckBox,
     QProgressBar, QFormLayout, QSpacerItem, QSizePolicy, QFrame,
-    QScrollArea, QWidget
+    QScrollArea, QWidget, QTextEdit
 )
-from qgis.PyQt.QtGui import QDesktopServices, QFont
+from qgis.PyQt.QtGui import QDesktopServices, QFont, QPalette
 from qgis.PyQt.QtCore import QUrl
 import requests
 
@@ -161,12 +161,12 @@ class RapidAPIAuthenticator(QObject):
 
 
 class SmartAuthDialog(QDialog):
-    """Native Qt credential management dialog with proper QGIS styling."""
+    """Enhanced Qt credential management dialog with improved visibility."""
     
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("API Credentials Setup")
-        self.setFixedSize(600, 700)
+        self.setFixedSize(650, 750)
         self.setModal(True)
         
         self.credentials = None
@@ -176,7 +176,7 @@ class SmartAuthDialog(QDialog):
         self.load_existing_credentials()
         
     def setup_ui(self):
-        """Setup native Qt UI with proper spacing and styling."""
+        """Setup enhanced Qt UI with better visibility."""
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
@@ -185,15 +185,14 @@ class SmartAuthDialog(QDialog):
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setFrameStyle(QFrame.NoFrame)
-        # Fix: Use correct Qt constants
         scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         
         # Content widget
         content_widget = QWidget()
         content_layout = QVBoxLayout()
-        content_layout.setContentsMargins(25, 25, 25, 25)
-        content_layout.setSpacing(20)
+        content_layout.setContentsMargins(30, 30, 30, 30)
+        content_layout.setSpacing(25)
         
         # Title section
         title_frame = self.create_title_section()
@@ -236,26 +235,26 @@ class SmartAuthDialog(QDialog):
         self.setLayout(main_layout)
         
     def create_title_section(self) -> QFrame:
-        """Create title section with native Qt styling."""
+        """Create enhanced title section."""
         frame = QFrame()
         frame.setFrameStyle(QFrame.Box)
         frame.setStyleSheet("""
             QFrame {
-                background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 #4a90e2, stop:1 #357abd);
-                border: 1px solid #2c5aa0;
-                border-radius: 6px;
+                border: 2px solid #2c5aa0;
+                border-radius: 8px;
             }
         """)
-        frame.setFixedHeight(80)
+        frame.setFixedHeight(100)
         
         layout = QVBoxLayout()
-        layout.setContentsMargins(20, 15, 20, 15)
-        layout.setSpacing(5)
+        layout.setContentsMargins(25, 20, 25, 20)
+        layout.setSpacing(8)
         
         title = QLabel("Zornade API Credentials")
         title_font = QFont()
-        title_font.setPointSize(16)
+        title_font.setPointSize(18)
         title_font.setBold(True)
         title.setFont(title_font)
         title.setStyleSheet("color: white; background: transparent;")
@@ -263,9 +262,9 @@ class SmartAuthDialog(QDialog):
         
         subtitle = QLabel("Configure your RapidAPI credentials for Italian cadastral data access")
         subtitle_font = QFont()
-        subtitle_font.setPointSize(10)
+        subtitle_font.setPointSize(11)
         subtitle.setFont(subtitle_font)
-        subtitle.setStyleSheet("color: rgba(255, 255, 255, 200); background: transparent;")
+        subtitle.setStyleSheet("color: rgba(255, 255, 255, 220); background: transparent;")
         subtitle.setAlignment(Qt.AlignCenter)
         subtitle.setWordWrap(True)
         
@@ -276,35 +275,47 @@ class SmartAuthDialog(QDialog):
         return frame
         
     def create_status_section(self) -> QGroupBox:
-        """Create status section with native Qt styling."""
+        """Create enhanced status section."""
         group = QGroupBox("Current Status")
+        group_font = QFont()
+        group_font.setPointSize(14)
+        group_font.setBold(True)
+        group.setFont(group_font)
         group.setStyleSheet("""
             QGroupBox {
                 font-weight: bold;
-                font-size: 13px;
-                margin-top: 10px;
-                padding-top: 15px;
+                font-size: 14px;
+                margin-top: 15px;
+                padding-top: 20px;
+                border: 2px solid #bdc3c7;
+                border-radius: 8px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px 0 5px;
+                left: 15px;
+                padding: 0 8px 0 8px;
+                color: #2c3e50;
+                background-color: white;
             }
         """)
         
         layout = QVBoxLayout()
-        layout.setContentsMargins(15, 20, 15, 15)
+        layout.setContentsMargins(20, 25, 20, 20)
         
         self.status_label = QLabel("Loading status...")
         self.status_label.setWordWrap(True)
-        self.status_label.setMinimumHeight(60)
+        self.status_label.setMinimumHeight(80)
+        status_font = QFont()
+        status_font.setPointSize(11)
+        self.status_label.setFont(status_font)
         self.status_label.setStyleSheet("""
             QLabel {
-                padding: 15px;
-                border: 1px solid #ddd;
-                border-radius: 6px;
+                padding: 20px;
+                border: 2px solid #ddd;
+                border-radius: 8px;
                 background-color: #f8f9fa;
                 color: #495057;
+                line-height: 1.5;
             }
         """)
         
@@ -314,27 +325,39 @@ class SmartAuthDialog(QDialog):
         return group
         
     def create_guide_section(self) -> QGroupBox:
-        """Create setup guide section."""
+        """Create enhanced setup guide section."""
         group = QGroupBox("Quick Setup Guide")
+        group_font = QFont()
+        group_font.setPointSize(14)
+        group_font.setBold(True)
+        group.setFont(group_font)
         group.setStyleSheet("""
             QGroupBox {
                 font-weight: bold;
-                font-size: 13px;
-                margin-top: 10px;
-                padding-top: 15px;
+                font-size: 14px;
+                margin-top: 15px;
+                padding-top: 20px;
+                border: 2px solid #bdc3c7;
+                border-radius: 8px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px 0 5px;
+                left: 15px;
+                padding: 0 8px 0 8px;
+                color: #2c3e50;
+                background-color: white;
             }
         """)
         
         layout = QVBoxLayout()
-        layout.setContentsMargins(15, 20, 15, 15)
+        layout.setContentsMargins(20, 25, 20, 20)
         layout.setSpacing(15)
         
-        # Step labels with proper spacing
+        # Enhanced step display using native Qt
+        steps_frame = QFrame()
+        steps_layout = QVBoxLayout()
+        steps_layout.setSpacing(12)
+        
         steps = [
             "1. Click 'Open API Page' below to visit the Zornade service",
             "2. Sign up or log in to your RapidAPI account",
@@ -342,31 +365,75 @@ class SmartAuthDialog(QDialog):
             "4. Copy your API credentials and enter them below"
         ]
         
-        for step in steps:
-            step_label = QLabel(step)
-            step_label.setWordWrap(True)
-            step_label.setStyleSheet("""
-                QLabel {
-                    padding: 8px 12px;
+        for i, step in enumerate(steps):
+            step_frame = QFrame()
+            step_frame.setStyleSheet("""
+                QFrame {
                     background-color: #e3f2fd;
                     border-left: 4px solid #2196f3;
-                    color: #0d47a1;
+                    border-radius: 6px;
+                    padding: 2px;
                 }
             """)
-            layout.addWidget(step_label)
+            
+            step_layout = QHBoxLayout()
+            step_layout.setContentsMargins(15, 12, 15, 12)
+            
+            # Step number
+            step_num = QLabel(f"{i+1}")
+            step_num.setStyleSheet("""
+                QLabel {
+                    background-color: #2196f3;
+                    color: white;
+                    border-radius: 15px;
+                    font-weight: bold;
+                    font-size: 12px;
+                    min-width: 30px;
+                    max-width: 30px;
+                    min-height: 30px;
+                    max-height: 30px;
+                }
+            """)
+            step_num.setAlignment(Qt.AlignCenter)
+            
+            # Step text
+            step_text = QLabel(step.split('. ', 1)[1])  # Remove number from text
+            step_text.setWordWrap(True)
+            step_font = QFont()
+            step_font.setPointSize(11)
+            step_text.setFont(step_font)
+            step_text.setStyleSheet("""
+                QLabel {
+                    color: #0d47a1;
+                    background: transparent;
+                }
+            """)
+            
+            step_layout.addWidget(step_num)
+            step_layout.addWidget(step_text, 1)
+            step_frame.setLayout(step_layout)
+            steps_layout.addWidget(step_frame)
         
-        # API page button
-        self.api_btn = QPushButton("Open API Page")
-        self.api_btn.setMinimumHeight(40)
+        steps_frame.setLayout(steps_layout)
+        layout.addWidget(steps_frame)
+        
+        # Enhanced API page button
+        self.api_btn = QPushButton("🌐 Open API Page")
+        self.api_btn.setMinimumHeight(50)
+        self.api_btn.setMinimumWidth(200)
+        api_font = QFont()
+        api_font.setPointSize(13)
+        api_font.setBold(True)
+        self.api_btn.setFont(api_font)
         self.api_btn.setStyleSheet("""
             QPushButton {
                 background-color: #2196f3;
                 color: white;
                 border: none;
-                padding: 12px 24px;
-                border-radius: 6px;
+                padding: 15px 30px;
+                border-radius: 8px;
                 font-weight: bold;
-                font-size: 14px;
+                font-size: 13px;
             }
             QPushButton:hover {
                 background-color: #1976d2;
@@ -376,65 +443,99 @@ class SmartAuthDialog(QDialog):
             }
         """)
         self.api_btn.clicked.connect(self.open_api_page)
-        layout.addWidget(self.api_btn)
+        layout.addWidget(self.api_btn, 0, Qt.AlignCenter)
         
         group.setLayout(layout)
         return group
         
     def create_credentials_form(self) -> QGroupBox:
-        """Create credentials form with proper spacing."""
+        """Create enhanced credentials form."""
         group = QGroupBox("Enter Your Credentials")
+        group_font = QFont()
+        group_font.setPointSize(14)
+        group_font.setBold(True)
+        group.setFont(group_font)
         group.setStyleSheet("""
             QGroupBox {
                 font-weight: bold;
-                font-size: 13px;
-                margin-top: 10px;
-                padding-top: 15px;
+                font-size: 14px;
+                margin-top: 15px;
+                padding-top: 20px;
+                border: 2px solid #bdc3c7;
+                border-radius: 8px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px 0 5px;
+                left: 15px;
+                padding: 0 8px 0 8px;
+                color: #2c3e50;
+                background-color: white;
             }
         """)
         
         layout = QVBoxLayout()
-        layout.setContentsMargins(15, 20, 15, 15)
-        layout.setSpacing(20)
+        layout.setContentsMargins(20, 25, 20, 20)
+        layout.setSpacing(25)
         
         # API Key section
         api_frame = QFrame()
         api_layout = QVBoxLayout()
-        api_layout.setSpacing(8)
+        api_layout.setSpacing(10)
         
-        api_label = QLabel("RapidAPI Key:")
-        api_label.setStyleSheet("font-weight: bold; color: #2c3e50; font-size: 12px;")
+        api_label = QLabel("🔐 RapidAPI Key:")
+        api_label_font = QFont()
+        api_label_font.setPointSize(12)
+        api_label_font.setBold(True)
+        api_label.setFont(api_label_font)
+        api_label.setStyleSheet("color: #2c3e50; margin-bottom: 5px;")
         
         api_help = QLabel("Get this from your RapidAPI dashboard → 'My Apps' section")
-        api_help.setStyleSheet("color: #6c757d; font-size: 11px; margin-bottom: 5px;")
+        api_help_font = QFont()
+        api_help_font.setPointSize(10)
+        api_help.setFont(api_help_font)
+        api_help.setStyleSheet("color: #6c757d; margin-bottom: 8px;")
         api_help.setWordWrap(True)
         
         self.api_key_input = QLineEdit()
         self.api_key_input.setPlaceholderText("Enter your X-RapidAPI-Key (e.g., 1234567890abcdef...)")
-        self.api_key_input.setMinimumHeight(35)
+        self.api_key_input.setMinimumHeight(45)
+        input_font = QFont()
+        input_font.setPointSize(11)
+        self.api_key_input.setFont(input_font)
         self.api_key_input.setStyleSheet("""
             QLineEdit {
-                padding: 8px 12px;
+                padding: 12px 15px;
                 border: 2px solid #dee2e6;
-                border-radius: 6px;
-                font-size: 13px;
+                border-radius: 8px;
+                font-size: 11px;
                 background-color: white;
             }
             QLineEdit:focus {
                 border-color: #007bff;
                 outline: none;
             }
+            QLineEdit:hover {
+                border-color: #80bdff;
+            }
         """)
         self.api_key_input.setEchoMode(QLineEdit.Password)
         self.api_key_input.textChanged.connect(self.on_input_changed)
         
         self.show_api_key = QCheckBox("Show API Key")
-        self.show_api_key.setStyleSheet("color: #6c757d; margin-top: 5px;")
+        checkbox_font = QFont()
+        checkbox_font.setPointSize(10)
+        self.show_api_key.setFont(checkbox_font)
+        self.show_api_key.setStyleSheet("""
+            QCheckBox {
+                color: #6c757d;
+                margin-top: 8px;
+                spacing: 8px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+            }
+        """)
         self.show_api_key.toggled.connect(self.toggle_api_key_visibility)
         
         api_layout.addWidget(api_label)
@@ -446,36 +547,58 @@ class SmartAuthDialog(QDialog):
         # Bearer Token section
         bearer_frame = QFrame()
         bearer_layout = QVBoxLayout()
-        bearer_layout.setSpacing(8)
+        bearer_layout.setSpacing(10)
         
-        bearer_label = QLabel("Bearer Token:")
-        bearer_label.setStyleSheet("font-weight: bold; color: #2c3e50; font-size: 12px;")
+        bearer_label = QLabel("🎫 Bearer Token:")
+        bearer_label_font = QFont()
+        bearer_label_font.setPointSize(12)
+        bearer_label_font.setBold(True)
+        bearer_label.setFont(bearer_label_font)
+        bearer_label.setStyleSheet("color: #2c3e50; margin-bottom: 5px;")
         
         bearer_help = QLabel("Get this from the API page → 'Test' tab → Copy token after 'Bearer '")
-        bearer_help.setStyleSheet("color: #6c757d; font-size: 11px; margin-bottom: 5px;")
+        bearer_help_font = QFont()
+        bearer_help_font.setPointSize(10)
+        bearer_help.setFont(bearer_help_font)
+        bearer_help.setStyleSheet("color: #6c757d; margin-bottom: 8px;")
         bearer_help.setWordWrap(True)
         
         self.bearer_input = QLineEdit()
         self.bearer_input.setPlaceholderText("Enter bearer token (without 'Bearer ' prefix)")
-        self.bearer_input.setMinimumHeight(35)
+        self.bearer_input.setMinimumHeight(45)
+        self.bearer_input.setFont(input_font)
         self.bearer_input.setStyleSheet("""
             QLineEdit {
-                padding: 8px 12px;
+                padding: 12px 15px;
                 border: 2px solid #dee2e6;
-                border-radius: 6px;
-                font-size: 13px;
+                border-radius: 8px;
+                font-size: 11px;
                 background-color: white;
             }
             QLineEdit:focus {
                 border-color: #007bff;
                 outline: none;
             }
+            QLineEdit:hover {
+                border-color: #80bdff;
+            }
         """)
         self.bearer_input.setEchoMode(QLineEdit.Password)
         self.bearer_input.textChanged.connect(self.on_input_changed)
         
         self.show_bearer = QCheckBox("Show Bearer Token")
-        self.show_bearer.setStyleSheet("color: #6c757d; margin-top: 5px;")
+        self.show_bearer.setFont(checkbox_font)
+        self.show_bearer.setStyleSheet("""
+            QCheckBox {
+                color: #6c757d;
+                margin-top: 8px;
+                spacing: 8px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+            }
+        """)
         self.show_bearer.toggled.connect(self.toggle_bearer_visibility)
         
         bearer_layout.addWidget(bearer_label)
@@ -491,52 +614,66 @@ class SmartAuthDialog(QDialog):
         return group
         
     def create_validation_section(self) -> QGroupBox:
-        """Create validation results section."""
+        """Create enhanced validation results section."""
         group = QGroupBox("Validation Results")
+        group_font = QFont()
+        group_font.setPointSize(14)
+        group_font.setBold(True)
+        group.setFont(group_font)
         group.setStyleSheet("""
             QGroupBox {
                 font-weight: bold;
-                font-size: 13px;
-                margin-top: 10px;
-                padding-top: 15px;
+                font-size: 14px;
+                margin-top: 15px;
+                padding-top: 20px;
+                border: 2px solid #bdc3c7;
+                border-radius: 8px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px 0 5px;
+                left: 15px;
+                padding: 0 8px 0 8px;
+                color: #2c3e50;
+                background-color: white;
             }
         """)
         
         layout = QVBoxLayout()
-        layout.setContentsMargins(15, 20, 15, 15)
-        layout.setSpacing(10)
+        layout.setContentsMargins(20, 25, 20, 20)
+        layout.setSpacing(15)
         
         self.validation_label = QLabel("Enter both credentials above and click 'Test' to verify")
         self.validation_label.setWordWrap(True)
-        self.validation_label.setMinimumHeight(50)
+        self.validation_label.setMinimumHeight(70)
+        validation_font = QFont()
+        validation_font.setPointSize(11)
+        self.validation_label.setFont(validation_font)
         self.validation_label.setStyleSheet("""
             QLabel {
-                padding: 12px;
-                border: 1px solid #ddd;
-                border-radius: 6px;
+                padding: 18px;
+                border: 2px solid #ddd;
+                border-radius: 8px;
                 background-color: #f8f9fa;
                 color: #6c757d;
+                line-height: 1.4;
             }
         """)
         
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
-        self.progress_bar.setMinimumHeight(25)
+        self.progress_bar.setMinimumHeight(30)
         self.progress_bar.setStyleSheet("""
             QProgressBar {
                 border: 2px solid #dee2e6;
-                border-radius: 6px;
+                border-radius: 8px;
                 text-align: center;
                 background-color: #f8f9fa;
+                font-size: 11px;
+                font-weight: bold;
             }
             QProgressBar::chunk {
                 background-color: #007bff;
-                border-radius: 4px;
+                border-radius: 6px;
             }
         """)
         
@@ -547,25 +684,30 @@ class SmartAuthDialog(QDialog):
         return group
         
     def create_action_buttons(self) -> QFrame:
-        """Create action buttons with proper spacing."""
+        """Create enhanced action buttons."""
         frame = QFrame()
         layout = QHBoxLayout()
-        layout.setContentsMargins(0, 10, 0, 10)
-        layout.setSpacing(15)
+        layout.setContentsMargins(0, 15, 0, 15)
+        layout.setSpacing(20)
         
-        self.test_btn = QPushButton("Test Credentials")
+        button_font = QFont()
+        button_font.setPointSize(12)
+        button_font.setBold(True)
+        
+        self.test_btn = QPushButton("🧪 Test Credentials")
         self.test_btn.setEnabled(False)
-        self.test_btn.setMinimumHeight(40)
-        self.test_btn.setMinimumWidth(130)
+        self.test_btn.setMinimumHeight(50)
+        self.test_btn.setMinimumWidth(160)
+        self.test_btn.setFont(button_font)
         self.test_btn.setStyleSheet("""
             QPushButton {
                 background-color: #ffc107;
                 color: #212529;
                 border: none;
-                padding: 10px 20px;
-                border-radius: 6px;
+                padding: 15px 25px;
+                border-radius: 8px;
                 font-weight: bold;
-                font-size: 13px;
+                font-size: 12px;
             }
             QPushButton:hover:enabled {
                 background-color: #e0a800;
@@ -577,19 +719,20 @@ class SmartAuthDialog(QDialog):
         """)
         self.test_btn.clicked.connect(self.test_credentials)
         
-        self.save_btn = QPushButton("Save & Use")
+        self.save_btn = QPushButton("💾 Save & Use")
         self.save_btn.setEnabled(False)
-        self.save_btn.setMinimumHeight(40)
-        self.save_btn.setMinimumWidth(120)
+        self.save_btn.setMinimumHeight(50)
+        self.save_btn.setMinimumWidth(140)
+        self.save_btn.setFont(button_font)
         self.save_btn.setStyleSheet("""
             QPushButton {
                 background-color: #28a745;
                 color: white;
                 border: none;
-                padding: 10px 20px;
-                border-radius: 6px;
+                padding: 15px 25px;
+                border-radius: 8px;
                 font-weight: bold;
-                font-size: 13px;
+                font-size: 12px;
             }
             QPushButton:hover:enabled {
                 background-color: #218838;
@@ -601,18 +744,19 @@ class SmartAuthDialog(QDialog):
         """)
         self.save_btn.clicked.connect(self.save_and_use)
         
-        self.clear_btn = QPushButton("Clear Saved")
-        self.clear_btn.setMinimumHeight(40)
-        self.clear_btn.setMinimumWidth(110)
+        self.clear_btn = QPushButton("🗑️ Clear Saved")
+        self.clear_btn.setMinimumHeight(50)
+        self.clear_btn.setMinimumWidth(130)
+        self.clear_btn.setFont(button_font)
         self.clear_btn.setStyleSheet("""
             QPushButton {
                 background-color: #dc3545;
                 color: white;
                 border: none;
-                padding: 10px 20px;
-                border-radius: 6px;
+                padding: 15px 25px;
+                border-radius: 8px;
                 font-weight: bold;
-                font-size: 13px;
+                font-size: 12px;
             }
             QPushButton:hover {
                 background-color: #c82333;
@@ -629,25 +773,33 @@ class SmartAuthDialog(QDialog):
         return frame
         
     def create_help_section(self) -> QGroupBox:
-        """Create help section with native Qt elements."""
+        """Create enhanced help section using native Qt."""
         group = QGroupBox("Common Issues")
+        group_font = QFont()
+        group_font.setPointSize(14)
+        group_font.setBold(True)
+        group.setFont(group_font)
         group.setStyleSheet("""
             QGroupBox {
                 font-weight: bold;
-                font-size: 13px;
-                margin-top: 10px;
-                padding-top: 15px;
+                font-size: 14px;
+                margin-top: 15px;
+                padding-top: 20px;
+                border: 2px solid #bdc3c7;
+                border-radius: 8px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px 0 5px;
+                left: 15px;
+                padding: 0 8px 0 8px;
+                color: #2c3e50;
+                background-color: white;
             }
         """)
         
         layout = QVBoxLayout()
-        layout.setContentsMargins(15, 20, 15, 15)
-        layout.setSpacing(8)
+        layout.setContentsMargins(20, 25, 20, 20)
+        layout.setSpacing(12)
         
         issues = [
             ("401 Error:", "Wrong API key or bearer token - double-check both"),
@@ -659,13 +811,20 @@ class SmartAuthDialog(QDialog):
         for error_type, description in issues:
             issue_frame = QFrame()
             issue_layout = QHBoxLayout()
-            issue_layout.setContentsMargins(10, 8, 10, 8)
-            issue_layout.setSpacing(10)
+            issue_layout.setContentsMargins(15, 12, 15, 12)
+            issue_layout.setSpacing(15)
             
             error_label = QLabel(error_type)
-            error_label.setStyleSheet("font-weight: bold; color: #dc3545; min-width: 100px;")
+            error_font = QFont()
+            error_font.setPointSize(11)
+            error_font.setBold(True)
+            error_label.setFont(error_font)
+            error_label.setStyleSheet("color: #dc3545; min-width: 120px;")
             
             desc_label = QLabel(description)
+            desc_font = QFont()
+            desc_font.setPointSize(11)
+            desc_label.setFont(desc_font)
             desc_label.setStyleSheet("color: #495057;")
             desc_label.setWordWrap(True)
             
@@ -675,8 +834,8 @@ class SmartAuthDialog(QDialog):
             issue_frame.setStyleSheet("""
                 QFrame {
                     background-color: #fff3cd;
-                    border: 1px solid #ffeaa7;
-                    border-radius: 4px;
+                    border: 2px solid #ffeaa7;
+                    border-radius: 6px;
                 }
             """)
             
@@ -686,21 +845,26 @@ class SmartAuthDialog(QDialog):
         return group
         
     def create_bottom_buttons(self) -> QHBoxLayout:
-        """Create bottom dialog buttons."""
+        """Create enhanced bottom dialog buttons."""
         layout = QHBoxLayout()
-        layout.setContentsMargins(20, 15, 20, 20)
-        layout.setSpacing(15)
+        layout.setContentsMargins(25, 20, 25, 25)
+        layout.setSpacing(20)
         
-        close_btn = QPushButton("Cancel")
-        close_btn.setMinimumHeight(35)
-        close_btn.setMinimumWidth(80)
+        button_font = QFont()
+        button_font.setPointSize(12)
+        button_font.setBold(True)
+        
+        close_btn = QPushButton("❌ Cancel")
+        close_btn.setMinimumHeight(45)
+        close_btn.setMinimumWidth(100)
+        close_btn.setFont(button_font)
         close_btn.setStyleSheet("""
             QPushButton {
                 background-color: #6c757d;
                 color: white;
                 border: none;
-                padding: 8px 16px;
-                border-radius: 6px;
+                padding: 12px 20px;
+                border-radius: 8px;
                 font-weight: bold;
             }
             QPushButton:hover {
@@ -709,17 +873,18 @@ class SmartAuthDialog(QDialog):
         """)
         close_btn.clicked.connect(self.reject)
         
-        self.use_btn = QPushButton("Use These Credentials")
+        self.use_btn = QPushButton("✅ Use These Credentials")
         self.use_btn.setEnabled(False)
-        self.use_btn.setMinimumHeight(35)
-        self.use_btn.setMinimumWidth(150)
+        self.use_btn.setMinimumHeight(45)
+        self.use_btn.setMinimumWidth(180)
+        self.use_btn.setFont(button_font)
         self.use_btn.setStyleSheet("""
             QPushButton {
                 background-color: #007bff;
                 color: white;
                 border: none;
-                padding: 8px 16px;
-                border-radius: 6px;
+                padding: 12px 20px;
+                border-radius: 8px;
                 font-weight: bold;
             }
             QPushButton:hover:enabled {
@@ -739,24 +904,28 @@ class SmartAuthDialog(QDialog):
         return layout
 
     def load_existing_credentials(self):
-        """Load existing credentials with native Qt display."""
+        """Load existing credentials with enhanced display."""
         saved_creds = self.authenticator.get_saved_credentials()
         
         if saved_creds:
             masked_key = f"{saved_creds['rapidapi_key'][:8]}...{saved_creds['rapidapi_key'][-4:]}"
             
-            self.status_label.setText(
-                f"Found saved credentials: {masked_key}\n"
+            status_text = (
+                f"✅ Found saved credentials: {masked_key}\n"
                 f"Last validated: {saved_creds.get('last_validated', 'Unknown')}\n"
-                f"Status: {'Working' if saved_creds.get('is_working', True) else 'Issues detected'}"
+                f"Status: {'🟢 Working' if saved_creds.get('is_working', True) else '🔴 Issues detected'}"
             )
+            
+            self.status_label.setText(status_text)
             self.status_label.setStyleSheet("""
                 QLabel {
-                    padding: 15px;
-                    border: 1px solid #c3e6cb;
-                    border-radius: 6px;
+                    padding: 20px;
+                    border: 2px solid #c3e6cb;
+                    border-radius: 8px;
                     background-color: #d4edda;
                     color: #155724;
+                    line-height: 1.5;
+                    font-weight: bold;
                 }
             """)
             
@@ -765,17 +934,21 @@ class SmartAuthDialog(QDialog):
             self.use_btn.setEnabled(True)
             self.clear_btn.setEnabled(True)
         else:
-            self.status_label.setText(
-                "No saved credentials found\n"
+            status_text = (
+                "⚠️ No saved credentials found\n"
                 "Please follow the setup guide below to get started"
             )
+            
+            self.status_label.setText(status_text)
             self.status_label.setStyleSheet("""
                 QLabel {
-                    padding: 15px;
-                    border: 1px solid #ffeaa7;
-                    border-radius: 6px;
+                    padding: 20px;
+                    border: 2px solid #ffeaa7;
+                    border-radius: 8px;
                     background-color: #fff3cd;
                     color: #856404;
+                    line-height: 1.5;
+                    font-weight: bold;
                 }
             """)
             self.clear_btn.setEnabled(False)
@@ -785,7 +958,7 @@ class SmartAuthDialog(QDialog):
         QDesktopServices.openUrl(QUrl("https://rapidapi.com/abigdatacompany-abigdatacompany-default/api/enriched-cadastral-parcels-for-italy"))
 
     def on_input_changed(self):
-        """Handle input changes with validation feedback."""
+        """Handle input changes with enhanced validation feedback."""
         has_both = bool(self.api_key_input.text().strip() and self.bearer_input.text().strip())
         self.test_btn.setEnabled(has_both)
         
@@ -793,47 +966,54 @@ class SmartAuthDialog(QDialog):
         bearer_token = self.bearer_input.text().strip()
         
         if api_key and len(api_key) < 20:
-            self.validation_label.setText("API key seems too short (should be 30+ characters)")
+            self.validation_label.setText("⚠️ API key seems too short (should be 30+ characters)")
             self.validation_label.setStyleSheet("""
                 QLabel {
-                    padding: 12px;
-                    border: 1px solid #ffeaa7;
-                    border-radius: 6px;
+                    padding: 18px;
+                    border: 2px solid #ffeaa7;
+                    border-radius: 8px;
                     background-color: #fff3cd;
                     color: #856404;
+                    line-height: 1.4;
+                    font-weight: bold;
                 }
             """)
         elif bearer_token and len(bearer_token) < 10:
-            self.validation_label.setText("Bearer token seems too short")
+            self.validation_label.setText("⚠️ Bearer token seems too short")
             self.validation_label.setStyleSheet("""
                 QLabel {
-                    padding: 12px;
-                    border: 1px solid #ffeaa7;
-                    border-radius: 6px;
+                    padding: 18px;
+                    border: 2px solid #ffeaa7;
+                    border-radius: 8px;
                     background-color: #fff3cd;
                     color: #856404;
+                    line-height: 1.4;
+                    font-weight: bold;
                 }
             """)
         elif has_both:
-            self.validation_label.setText("Both credentials entered - click 'Test' to verify")
+            self.validation_label.setText("✅ Both credentials entered - click 'Test' to verify")
             self.validation_label.setStyleSheet("""
                 QLabel {
-                    padding: 12px;
-                    border: 1px solid #bee5eb;
-                    border-radius: 6px;
+                    padding: 18px;
+                    border: 2px solid #bee5eb;
+                    border-radius: 8px;
                     background-color: #d1ecf1;
                     color: #0c5460;
+                    line-height: 1.4;
+                    font-weight: bold;
                 }
             """)
         else:
             self.validation_label.setText("Enter both credentials above and click 'Test' to verify")
             self.validation_label.setStyleSheet("""
                 QLabel {
-                    padding: 12px;
-                    border: 1px solid #ddd;
-                    border-radius: 6px;
+                    padding: 18px;
+                    border: 2px solid #ddd;
+                    border-radius: 8px;
                     background-color: #f8f9fa;
                     color: #6c757d;
+                    line-height: 1.4;
                 }
             """)
 
@@ -846,17 +1026,17 @@ class SmartAuthDialog(QDialog):
         self.bearer_input.setEchoMode(QLineEdit.Normal if checked else QLineEdit.Password)
 
     def test_credentials(self):
-        """Test credentials with proper UI feedback."""
+        """Test credentials with enhanced UI feedback."""
         api_key = self.api_key_input.text().strip()
         bearer_token = self.bearer_input.text().strip()
         
         if not api_key or not bearer_token:
-            self.validation_label.setText("Please enter both credentials")
+            self.validation_label.setText("❌ Please enter both credentials")
             return
         
         self.progress_bar.setVisible(True)
         self.progress_bar.setRange(0, 0)
-        self.test_btn.setText("Testing...")
+        self.test_btn.setText("🔄 Testing...")
         self.test_btn.setEnabled(False)
         
         QApplication.processEvents()
@@ -864,31 +1044,35 @@ class SmartAuthDialog(QDialog):
         is_valid, message = self.authenticator.validate_credentials(api_key, bearer_token)
         
         self.progress_bar.setVisible(False)
-        self.test_btn.setText("Test Credentials")
+        self.test_btn.setText("🧪 Test Credentials")
         self.test_btn.setEnabled(True)
         
         if is_valid:
-            self.validation_label.setText(f"{message} - Credentials are working!")
+            self.validation_label.setText(f"✅ {message} - Credentials are working!")
             self.validation_label.setStyleSheet("""
                 QLabel {
-                    padding: 12px;
-                    border: 1px solid #c3e6cb;
-                    border-radius: 6px;
+                    padding: 18px;
+                    border: 2px solid #c3e6cb;
+                    border-radius: 8px;
                     background-color: #d4edda;
                     color: #155724;
+                    line-height: 1.4;
+                    font-weight: bold;
                 }
             """)
             self.save_btn.setEnabled(True)
             self.use_btn.setEnabled(True)
         else:
-            self.validation_label.setText(message)
+            self.validation_label.setText(f"❌ {message}")
             self.validation_label.setStyleSheet("""
                 QLabel {
-                    padding: 12px;
-                    border: 1px solid #f5c6cb;
-                    border-radius: 6px;
+                    padding: 18px;
+                    border: 2px solid #f5c6cb;
+                    border-radius: 8px;
                     background-color: #f8d7da;
                     color: #721c24;
+                    line-height: 1.4;
+                    font-weight: bold;
                 }
             """)
             self.save_btn.setEnabled(False)
@@ -905,11 +1089,11 @@ class SmartAuthDialog(QDialog):
         }
         
         if self.authenticator.save_credentials(credentials):
-            QMessageBox.information(self, "Success", "Credentials saved successfully!\nYou can now use the plugin.")
+            QMessageBox.information(self, "Success", "✅ Credentials saved successfully!\nYou can now use the plugin.")
             self.load_existing_credentials()
             self.accept_credentials()
         else:
-            QMessageBox.critical(self, "Error", "Failed to save credentials. Please try again.")
+            QMessageBox.critical(self, "Error", "❌ Failed to save credentials. Please try again.")
 
     def clear_credentials(self):
         """Clear saved credentials with confirmation."""
@@ -921,17 +1105,18 @@ class SmartAuthDialog(QDialog):
         
         if reply == QMessageBox.Yes:
             if self.authenticator.clear_credentials():
-                QMessageBox.information(self, "Cleared", "Credentials cleared successfully.")
+                QMessageBox.information(self, "Cleared", "✅ Credentials cleared successfully.")
                 self.api_key_input.clear()
                 self.bearer_input.clear()
                 self.validation_label.setText("Enter both credentials above and click 'Test' to verify")
                 self.validation_label.setStyleSheet("""
                     QLabel {
-                        padding: 12px;
-                        border: 1px solid #ddd;
-                        border-radius: 6px;
+                        padding: 18px;
+                        border: 2px solid #ddd;
+                        border-radius: 8px;
                         background-color: #f8f9fa;
                         color: #6c757d;
+                        line-height: 1.4;
                     }
                 """)
                 self.save_btn.setEnabled(False)
