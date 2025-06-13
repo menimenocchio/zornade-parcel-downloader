@@ -22,7 +22,8 @@ def create_plugin_zip():
         "ParcelDownloader.py",
         "rapidapi_auth.py",
         "metadata.txt",
-        "README.md"
+        "README.md",
+        "howto.png"  # Added the visual guide image
     ]
     
     # Optional files (include if they exist)

@@ -4,7 +4,7 @@
 
 [![QGIS Version](https://img.shields.io/badge/QGIS-3.16+-green.svg)](https://qgis.org)
 [![License](https://img.shields.io/badge/License-GPL--2.0--or--later-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.0-orange.svg)](metadata.txt)
+[![Version](https://img.shields.io/badge/Version-1.5.0-orange.svg)](metadata.txt)
 
 ## Overview
 
@@ -14,7 +14,7 @@ Zornade Italian Parcel Downloader is a professional-grade QGIS plugin that provi
 
 ### 🏗️ **Professional Data Access**
 - **Comprehensive Dataset**: Access to over 10 million enriched Italian cadastral parcels
-- **Rich Attributes**: 17 data fields including administrative info, demographics, and risk assessments
+- **Rich Attributes**: 57 data fields including administrative info, demographics, and risk assessments
 - **Accurate Geometries**: High-quality polygon and multipolygon geometries in EPSG:4326
 
 ### ⚡ **Performance & Reliability**
@@ -63,29 +63,53 @@ Zornade Italian Parcel Downloader is a professional-grade QGIS plugin that provi
 
 ## Quick Start Guide
 
-### 1. API Setup
+### 1. API Setup with Visual Guide
+
+![Credential Setup Guide](howto.png)
+
+Follow these steps to get your API credentials:
+
 1. **Create RapidAPI Account**: Visit [rapidapi.com](https://rapidapi.com) and sign up
-2. **Subscribe to Service**: Navigate to the [API page](https://rapidapi.com/abigdatacompany-abigdatacompany-default/api/enriched-cadastral-parcels-for-italy) and subscribe
-3. **Get Credentials**:
-   - Copy your **X-RapidAPI-Key** from the dashboard
-   - Obtain the **Bearer token** from the API documentation
-4. **Test Access**: Use the RapidAPI test console to verify your credentials work
+2. **Subscribe to Service**: Navigate to the [Zornade API page](https://rapidapi.com/abigdatacompany-abigdatacompany-default/api/enriched-cadastral-parcels-for-italy) and subscribe to a plan
+3. **Get Your Credentials** (see visual guide above):
+   - **Step 1**: Click on any endpoint (like "get-parcels") to open the test interface
+   - **Step 2**: Look at the "Code Examples" section on the right side
+   - **Find RapidAPI Key**: In the cURL example, copy the value after `'X-RapidAPI-Key: '` (without quotes)
+   - **Find Bearer Token**: In the cURL example, copy the value after `'Authorization: Bearer '` (just the token, not "Bearer ")
 
-### 2. Using the Plugin
-1. **Open Processing Toolbox**: Go to **Processing** → **Toolbox**
-2. **Navigate to Algorithm**: Expand **Zornade API** → **Zornade Italian Parcel Downloader**
-3. **Configure Parameters**:
-   - **RapidAPI Key**: Enter your API key
-   - **Authorization Bearer Token**: Enter token (without 'Bearer ' prefix)
-   - **Save Credentials**: Check to store securely for future use
-   - **Bounding Box**: Define your area of interest in Italy
-4. **Run Algorithm**: Click **Run** and monitor progress
+### 2. Plugin Configuration
+1. **Open Plugin Menu**: Click the Zornade plugin icon in the toolbar
+2. **Manage Credentials**: Select "Manage API Credentials" from the dropdown
+3. **Enter Credentials**:
+   - Paste your **RapidAPI Key** in the first field
+   - Paste your **Bearer Token** in the second field (without "Bearer " prefix)
+4. **Test & Save**: Click "Test Credentials" to verify, then "Save & Use"
 
-### 3. Working with Results
-- **Output Layer**: Automatically added to map with enriched attributes
-- **Attribute Table**: Access detailed parcel information
-- **Styling**: Apply symbology based on risk assessments or land use
-- **Analysis**: Use QGIS tools for spatial analysis and reporting
+### 3. Download Parcels
+1. **Open Processing**: Click the plugin icon → "Download Italian Parcels"
+2. **Set Area**: Define your bounding box area of interest in Italy
+3. **Run**: Click "Run" - the plugin will use your saved credentials automatically
+4. **Results**: The enriched parcel layer will be added to your map with automatic styling
+
+## Credential Setup - Detailed Instructions
+
+### Finding Your RapidAPI Key
+1. Go to your [RapidAPI Dashboard](https://rapidapi.com/developer/dashboard)
+2. Navigate to "My Apps" section
+3. Copy the "X-RapidAPI-Key" value (starts with letters/numbers, about 50 characters)
+
+### Finding Your Bearer Token
+1. Visit the [Zornade API page](https://rapidapi.com/abigdatacompany-abigdatacompany-default/api/enriched-cadastral-parcels-for-italy)
+2. Click on any endpoint (e.g., "get-parcels") 
+3. Look at the "Code Examples" section on the right
+4. In the cURL example, find the line: `'Authorization: Bearer TOKEN_HERE'`
+5. Copy only the token part (after "Bearer ", usually starts with "eyJ")
+
+### Common Setup Issues
+- **Wrong format**: Make sure to copy only the token value, not "Bearer " prefix
+- **Incomplete key**: RapidAPI keys are usually 50+ characters long
+- **Subscription required**: Free tier may have limited access
+- **Case sensitivity**: Copy credentials exactly as shown
 
 ## Data Structure
 
@@ -286,4 +310,4 @@ This plugin is licensed under the **GNU General Public License v2.0 or later (GP
 
 ---
 
-**Version**: 1.2.0 | **Last Updated**: 2025 | **Maintained by**: Zornade Team
+**Version**: 1.5.0 | **Last Updated**: 2025 | **Maintained by**: Zornade Team

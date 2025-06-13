@@ -8,6 +8,7 @@ import base64
 import json
 from typing import Optional, Dict, Tuple
 from datetime import datetime
+import os
 
 from qgis.PyQt.QtCore import QObject, QSettings, Qt
 from qgis.PyQt.QtWidgets import (
@@ -16,7 +17,7 @@ from qgis.PyQt.QtWidgets import (
     QProgressBar, QFormLayout, QSpacerItem, QSizePolicy, QFrame,
     QScrollArea, QWidget, QTextEdit, QDialogButtonBox, QGridLayout
 )
-from qgis.PyQt.QtGui import QDesktopServices, QFont, QPalette
+from qgis.PyQt.QtGui import QDesktopServices, QFont, QPalette, QPixmap
 from qgis.PyQt.QtCore import QUrl
 import requests
 
@@ -200,7 +201,7 @@ class SmartAuthDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("API Credentials Setup")
-        self.resize(550, 600)
+        self.resize(650, 800)  # Increased height to accommodate the wide image
         self.setModal(True)
         
         self.credentials = None
@@ -208,7 +209,7 @@ class SmartAuthDialog(QDialog):
         
         self.setup_ui()
         self.load_existing_credentials()
-        
+
     def setup_ui(self):
         """Setup native QGIS UI with minimal customization."""
         layout = QVBoxLayout()
@@ -299,15 +300,73 @@ class SmartAuthDialog(QDialog):
         group = QGroupBox("Setup Guide")
         layout = QVBoxLayout()
         
-        # Instructions using native QLabel
+        # Instructions using native QLabel with updated guidance
         instructions = QLabel("""<b>Quick Setup Steps:</b><br>
 1. Click 'Open API Page' below to visit the Zornade service<br>
-2. Sign up or log in to your RapidAPI account<br>
+2. Sign up or log in to your RapidAPI account if prompted<br>
 3. Subscribe to a plan (free options available)<br>
-4. Copy your API credentials and enter them below""")
+4. Click on any endpoint (e.g., 'get-parcels') to open the test interface<br>
+5. Look at the 'Code Examples' section on the right side<br>
+6. Copy credentials from the cURL example as shown below""")
         instructions.setWordWrap(True)
         instructions.setMargin(8)
         layout.addWidget(instructions)
+        
+        # Visual guide image - optimized for very wide landscape format
+        howto_label = QLabel()
+        howto_label.setAlignment(Qt.AlignCenter)
+        
+        # Load the howto.png image
+        plugin_dir = os.path.dirname(__file__)
+        howto_path = os.path.join(plugin_dir, 'howto.png')
+        
+        if os.path.exists(howto_path):
+            pixmap = QPixmap(howto_path)
+            if not pixmap.isNull():
+                # Image is 11520x4608 (aspect ratio ~2.5:1) - very wide landscape
+                # Scale to fit dialog width (600px) while maintaining aspect ratio
+                max_width = 600  # Fit within dialog width
+                max_height = 240  # Reasonable height to maintain readability
+                
+                # Calculate scaling to fit both width and height constraints
+                width_scale = max_width / pixmap.width()
+                height_scale = max_height / pixmap.height()
+                scale_factor = min(width_scale, height_scale)
+                
+                # Apply scaling with smooth transformation for better quality
+                scaled_width = int(pixmap.width() * scale_factor)
+                scaled_height = int(pixmap.height() * scale_factor)
+                scaled_pixmap = pixmap.scaled(scaled_width, scaled_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                
+                howto_label.setPixmap(scaled_pixmap)
+                howto_label.setStyleSheet("""
+                    QLabel {
+                        border: 2px solid #ddd;
+                        border-radius: 6px;
+                        background-color: white;
+                        padding: 8px;
+                        margin: 8px 0px;
+                    }
+                """)
+                howto_label.setScaledContents(False)  # Don't stretch, use actual scaled size
+                
+                # Add a note about image scaling for user reference
+                scale_note = QLabel(f"Visual guide scaled to {scaled_width}x{scaled_height} (click to view full size on API page)")
+                scale_note.setAlignment(Qt.AlignCenter)
+                scale_note.setStyleSheet("color: gray; font-size: 9pt; font-style: italic; margin-top: 5px;")
+                
+            else:
+                howto_label.setText("Visual guide image not available")
+                howto_label.setStyleSheet("color: gray; font-style: italic; padding: 10px;")
+                scale_note = None
+        else:
+            howto_label.setText("Visual guide: howto.png not found")
+            howto_label.setStyleSheet("color: gray; font-style: italic; padding: 10px;")
+            scale_note = None
+        
+        layout.addWidget(howto_label)
+        if scale_note:
+            layout.addWidget(scale_note)
         
         # API page button - using native button style
         self.api_btn = QPushButton("Open API Page")
@@ -326,11 +385,11 @@ class SmartAuthDialog(QDialog):
         # API Key section
         api_key_layout = QVBoxLayout()
         
-        api_help = QLabel("Get this from your RapidAPI dashboard → 'My Apps' section")
+        api_help = QLabel("From the cURL example: Copy the value after 'X-RapidAPI-Key:' (without quotes)")
         api_help.setStyleSheet("color: gray; font-size: 10pt;")
         
         self.api_key_input = QLineEdit()
-        self.api_key_input.setPlaceholderText("Enter your X-RapidAPI-Key")
+        self.api_key_input.setPlaceholderText("e.g., 1234567890abcdef1234567890abcdef12345678")
         self.api_key_input.setEchoMode(QLineEdit.Password)
         self.api_key_input.textChanged.connect(self.on_input_changed)
         
@@ -346,11 +405,11 @@ class SmartAuthDialog(QDialog):
         # Bearer Token section
         bearer_layout = QVBoxLayout()
         
-        bearer_help = QLabel("Get this from the API page → 'Test' tab → Copy token after 'Bearer '")
+        bearer_help = QLabel("From the cURL example: Copy the value after 'Bearer ' in the Authorization header")
         bearer_help.setStyleSheet("color: gray; font-size: 10pt;")
         
         self.bearer_input = QLineEdit()
-        self.bearer_input.setPlaceholderText("Enter bearer token (without 'Bearer ' prefix)")
+        self.bearer_input.setPlaceholderText("e.g., eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
         self.bearer_input.setEchoMode(QLineEdit.Password)
         self.bearer_input.textChanged.connect(self.on_input_changed)
         
@@ -395,10 +454,10 @@ class SmartAuthDialog(QDialog):
         grid = QGridLayout()
         
         issues = [
-            ("401 Error:", "Wrong API key or bearer token"),
-            ("403 Error:", "No active subscription"),
+            ("401 Error:", "Wrong API key or bearer token - check the cURL example"),
+            ("403 Error:", "No active subscription - make sure you subscribed to a plan"),
             ("Connection Error:", "Check internet connection"),
-            ("Rate Limited:", "API limits (credentials may be valid)")
+            ("Rate Limited:", "API limits reached (credentials are likely valid)")
         ]
         
         for i, (error_type, description) in enumerate(issues):
