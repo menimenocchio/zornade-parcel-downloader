@@ -90,6 +90,24 @@ class RapidAPIAuthenticator(QObject):
         except Exception:
             return False
     
+    def update_credential_status(self, is_working: bool, validation_details: Dict = None):
+        """Update credential working status based on API responses."""
+        try:
+            # Update the working status
+            self.settings.setValue(f"{self.SETTINGS_GROUP}/is_working", is_working)
+            self.settings.setValue(f"{self.SETTINGS_GROUP}/last_validated", datetime.now().strftime("%Y-%m-%d %H:%M"))
+            
+            # Optionally store additional validation details
+            if validation_details:
+                self.settings.setValue(f"{self.SETTINGS_GROUP}/last_status_code", validation_details.get('status_code', 0))
+                self.settings.setValue(f"{self.SETTINGS_GROUP}/last_response_time", validation_details.get('response_time', 0.0))
+            
+            # Sync settings to ensure they're saved
+            self.settings.sync()
+            
+        except Exception as e:
+            print(f"Error updating credential status: {e}")
+    
     def validate_credentials(self, api_key: str, bearer_token: str) -> Tuple[bool, str]:
         """Validate credentials with API call."""
         if not api_key or not bearer_token:
@@ -115,23 +133,39 @@ class RapidAPIAuthenticator(QObject):
                 timeout=15
             )
             
+            # Create validation details
+            validation_details = {
+                'status_code': response.status_code,
+                'response_time': response.elapsed.total_seconds() if hasattr(response, 'elapsed') else 0.0
+            }
+            
             if response.status_code == 200:
                 try:
                     data = response.json()
                     if data.get('success'):
                         count = len(data.get('data', []))
+                        # Update status to working
+                        self.update_credential_status(True, validation_details)
                         return True, f"Valid! Found {count} test parcels"
                     else:
+                        # Update status to not working
+                        self.update_credential_status(False, validation_details)
                         return False, f"API Error: {data.get('message', 'Unknown error')}"
                 except:
+                    self.update_credential_status(False, validation_details)
                     return False, "Invalid response from API"
             elif response.status_code == 401:
+                self.update_credential_status(False, validation_details)
                 return False, "Invalid credentials"
             elif response.status_code == 403:
+                self.update_credential_status(False, validation_details)
                 return False, "Access forbidden - check subscription"
             elif response.status_code == 429:
+                # Rate limited but credentials might be valid
+                self.update_credential_status(True, validation_details)
                 return False, "Rate limited (credentials may be valid)"
             else:
+                self.update_credential_status(False, validation_details)
                 return False, f"HTTP {response.status_code}"
                 
         except requests.exceptions.Timeout:

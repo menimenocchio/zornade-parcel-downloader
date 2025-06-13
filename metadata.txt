@@ -15,24 +15,65 @@ homepage=https://zornade.com
 
 # Recommended items:
 hasProcessingProvider=yes
-changelog=1.0.0 - Production release with comprehensive dataset
-    - 57 enriched attributes including demographics, economics, and risk assessments
-    - Beautiful automatic styling and labeling based on land use classification
-    - Professional-grade error handling and recovery mechanisms
-    - Adaptive batch processing (10-25 parcels per batch) optimized for dataset size
-    - Intelligent rate limiting and respectful API usage patterns
-    - Comprehensive progress reporting with detailed user feedback
-    - Robust geometry processing supporting complex Polygon and MultiPolygon formats
-    - Safe data type conversion and validation for all numeric and text fields
-    - Secure credential storage with encryption and optional persistence
-    - Performance optimization for large datasets (1000+ parcels)
-    - Enhanced user experience with informative error messages and troubleshooting guidance
-    - Multi-criteria analysis support for risk assessment, economic evaluation, and social indicators
-    - Advanced styling capabilities with categorized symbology and scale-dependent labeling
-    - Production-ready stability and reliability for professional workflows
+changelog=1.5.0 - Major UX/UI Overhaul & Complete Credential Management System
+    NEW FEATURES:
+    - Complete credential management system with dedicated dialog
+    - Secure encrypted storage of API keys and bearer tokens
+    - Smart authentication with automatic credential validation
+    - Single toolbar icon with intuitive dropdown menu
+    - Native QGIS-style UI with perfect dark mode compatibility
+    - Real-time credential status display in processing dialog
+    - Automatic credential testing and status updates
+    
+    UI/UX IMPROVEMENTS:
+    - Redesigned authentication dialog with step-by-step setup guide
+    - Native Qt styling throughout for perfect QGIS integration
+    - Enhanced visual feedback with proper system color support
+    - Improved button layouts and spacing for better usability
+    - Professional form layouts with contextual help text
+    - Streamlined workflow: setup once, use everywhere
+    
+    TECHNICAL ENHANCEMENTS:
+    - Removed redundant credential fields from main processing dialog
+    - Centralized credential handling through dedicated authenticator class
+    - Enhanced error handling with credential status feedback
+    - Improved API response validation and error recovery
+    - Better integration with QGIS Processing Framework
+    - Comprehensive credential validation with detailed feedback
+    
+    RELIABILITY IMPROVEMENTS:
+    - Robust credential storage with encryption and verification
+    - Automatic credential status monitoring and updates
+    - Enhanced error messages with actionable guidance
+    - Improved handling of authentication failures
+    - Better rate limiting detection and user feedback
+    
+    1.4.0 - Enhanced Batch Processing & Error Handling
+    - Adaptive batch processing with intelligent sizing (10-25 parcels)
+    - Enhanced concurrent processing with controlled thread pools
+    - Improved error recovery and detailed progress reporting
+    - Better handling of large datasets (1000+ parcels)
+    - Enhanced geometry processing for complex polygons
+    - Comprehensive error categorization and user feedback
+    
+    1.3.0 - Advanced Styling & Analysis Features
+    - Beautiful automatic styling based on land use classification
+    - Comprehensive categorized symbology with 35+ land use types
+    - Scale-dependent labeling system (1:250 to 1:25,000)
+    - Multi-line labels showing FID, municipality, and land class
+    - Enhanced color schemes for different land use categories
+    - Professional legend formatting and category organization
+    
+    1.2.0 - Initial Production Release
+    - Basic parcel download functionality
+    - 57 enriched attributes including demographics and risk assessments
+    - Simple bounding box selection
+    - Basic API integration without credential management
+    - Fundamental geometry processing capabilities
+    - Standard QGIS Processing Framework integration
 
 # Tags are comma separated with spaces allowed
-tags=italy,cadastral,parcel,property,api,rapidapi,zornade,processing,data,download,geometry,real estate,land use,risk assessment,demographics,economics,professional,gis,analysis,urban planning,environmental,flood risk,landslide,seismic,population,employment,education,social indicators,development indices
+tags=italy,cadastral,parcel,property,api,rapidapi,zornade,processing,data,download,geometry,real estate,land use,risk assessment,demographics,economics,professional,gis,analysis,urban planning,environmental,flood risk,landslide,seismic,population,employment,education,social indicators,development indices,credential management,authentication,security
 
 category=Web
 icon=icon.png

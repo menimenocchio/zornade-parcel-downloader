@@ -488,10 +488,6 @@ class ParcelDownloaderAlgorithm(QgsProcessingAlgorithm):
                     # Fix: Ensure proper JSON payload construction
                     info_payload = {"fid": str(fid)}
                     
-                    # Debug: Log the payload format for first request
-                    if batch_index == 0:
-                        feedback.pushInfo(self.tr("Debug: Request payload format: {}".format(info_payload)))
-                    
                     info_response = requests.post(
                         get_info_url, 
                         headers=headers, 
